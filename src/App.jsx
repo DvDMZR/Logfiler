@@ -829,7 +829,6 @@ export default function App() {
                   {showKickoffsOnChart && logData.events.filter(e => e.type === 'Kickoff').map((event, i) => (
                     <ReferenceLine key={`kickoff-line-${i}`} x={event.time} yAxisId="flow" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
                   ))}
-
                   {/* Reattach als vertikale Linien (zuschaltbar) */}
                   {showReattachOnChart && logData.events.filter(e => e.type === 'Reattach').map((event, i) => (
                     <ReferenceLine key={`reattach-line-${i}`} x={event.time} yAxisId="flow" stroke="#8b5cf6" strokeWidth={2} />
