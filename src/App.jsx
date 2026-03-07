@@ -691,7 +691,7 @@ export default function App() {
       {logData && (
         <div className="max-w-screen-2xl mx-auto space-y-6">
           
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Info size={18} />
@@ -728,6 +728,16 @@ export default function App() {
               <p className="text-2xl text-slate-800">
                 {logData.avgMilkFlow > 0 ? `${logData.avgMilkFlow} g/min` : '—'}
                 {logData.maxMilkFlow > 0 && <span className="text-sm text-slate-400 ml-1">max {logData.maxMilkFlow}</span>}
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-500 mb-3">
+                <RefreshCw size={18} />
+                <span className="uppercase text-xs tracking-wider">Reattach Attempts</span>
+              </div>
+              <p className="text-2xl text-slate-800">
+                {logData.reattachAttempts > 0 ? logData.reattachAttempts : '—'}
               </p>
             </div>
           </div>
@@ -1157,7 +1167,7 @@ export default function App() {
                   <div className="text-2xl text-slate-800">{logData.finalResults.expectedKg} kg</div>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Achievement</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">%</div>
                   <div className="text-2xl text-slate-800">{logData.finalResults.percent} %</div>
                 </div>
               </div>
@@ -1176,7 +1186,7 @@ export default function App() {
                         <div className="text-lg text-slate-800">{logData.finalResults.qtrAmount[q.key]} g</div>
                       </div>
                       <div>
-                        <div className="text-xs text-slate-400">Achievement</div>
+                        <div className="text-xs text-slate-400">%</div>
                         <div className="text-base text-slate-700">{logData.finalResults.qtrPercent[q.key]} %</div>
                       </div>
                       <div className="flex justify-center gap-4">
