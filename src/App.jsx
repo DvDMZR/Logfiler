@@ -8,7 +8,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine
+  ReferenceLine,
+  ReferenceArea
 } from 'recharts';
 import {
   UploadCloud,
@@ -22,7 +23,8 @@ import {
   ChevronUp,
   Droplets,
   CheckCircle2,
-  Flag
+  Flag,
+  RefreshCw
 } from 'lucide-react';
 
 // SIDENOTE: 
@@ -39,8 +41,6 @@ export default function App() {
   const [showParameters, setShowParameters] = useState(false);
   
   const [hiddenSeries, setHiddenSeries] = useState({
-    amountTotal: false,
-    flowTotal: false,
     amountRR: false,
     amountRL: false,
     amountFL: false,
@@ -48,7 +48,9 @@ export default function App() {
     flowRR: true,
     flowRL: true,
     flowFL: true,
-    flowFR: true
+    flowFR: true,
+    amountTotal: false,
+    flowTotal: false,
   });
 
   const [activeSignals, setActiveSignals] = useState({
@@ -57,6 +59,9 @@ export default function App() {
     color: false,
     conduct: false
   });
+
+  const [showKickoffsOnChart, setShowKickoffsOnChart] = useState(false);
+  const [showReattachOnChart, setShowReattachOnChart] = useState(false);
 
   const [lockedHighlights, setLockedHighlights] = useState([]);
   const [hoverHighlight, setHoverHighlight] = useState(null);
@@ -96,6 +101,12 @@ export default function App() {
       actualTotal: 0,
       expectedQtr: { RR: 0, RL: 0, FL: 0, FR: 0 },
       actualQtr: { RR: 0, RL: 0, FL: 0, FR: 0 },
+      milkingDuration: 0,
+      avgMilkFlow: 0,
+      maxMilkFlow: 0,
+      reattachAttempts: 0,
+      milkFlowDetectionTime: { RR: 0, RL: 0, FL: 0, FR: 0 },
+      milkFlowDetectionTries: { RR: 0, RL: 0, FL: 0, FR: 0 },
       anomalies: [],
       finalResults: {
         hasData: false,
@@ -109,6 +120,9 @@ export default function App() {
         messages: []
       }
     };
+
+    const qtrKeyMap = { RR1: 'RR', RL2: 'RL', FL3: 'FL', FR4: 'FR' };
+    let lastReattachEventTime = -9999;
 
     for (let line of lines) {
       if (line.includes('MLK_AMS_AUTOMATIC_ATTACHMENT')) {
@@ -216,19 +230,31 @@ export default function App() {
       if (expTotMatch) parsedData.expectedTotal = parseInt(expTotMatch[1], 10);
 
       const expQtrMatch = line.match(/ExpectedMilkYieldQTR\[(RR1|RL2|FL3|FR4)\]\(g\):\s*(\d+)/);
-      if (expQtrMatch) {
-        const qtrMap = { RR1: 'RR', RL2: 'RL', FL3: 'FL', FR4: 'FR' };
-        parsedData.expectedQtr[qtrMap[expQtrMatch[1]]] = parseInt(expQtrMatch[2], 10);
-      }
+      if (expQtrMatch) parsedData.expectedQtr[qtrKeyMap[expQtrMatch[1]]] = parseInt(expQtrMatch[2], 10);
 
       const actTotMatch = line.match(/TotalMilkYield\(g\):\s*(\d+)/);
       if (actTotMatch) parsedData.actualTotal = parseInt(actTotMatch[1], 10);
 
       const actQtrMatch = line.match(/MilkingYieldQuarter\[(RR1|RL2|FL3|FR4)\]\(dg\):\s*(\d+)/);
-      if (actQtrMatch) {
-        const qtrMap = { RR1: 'RR', RL2: 'RL', FL3: 'FL', FR4: 'FR' };
-        parsedData.actualQtr[qtrMap[actQtrMatch[1]]] = parseInt(actQtrMatch[2], 10) * 10;
-      }
+      if (actQtrMatch) parsedData.actualQtr[qtrKeyMap[actQtrMatch[1]]] = parseInt(actQtrMatch[2], 10) * 10;
+
+      const mfdtMatch = line.match(/MilkFlowDetectionTime\[(RR1|RL2|FL3|FR4)\]:\s*(\d+)/);
+      if (mfdtMatch) parsedData.milkFlowDetectionTime[qtrKeyMap[mfdtMatch[1]]] = parseInt(mfdtMatch[2], 10);
+
+      const mfdtrMatch = line.match(/MilkFlowDetectionTries\[(RR1|RL2|FL3|FR4)\]:\s*(\d+)/);
+      if (mfdtrMatch) parsedData.milkFlowDetectionTries[qtrKeyMap[mfdtrMatch[1]]] = parseInt(mfdtrMatch[2], 10);
+
+      const milkDurMatch = line.match(/MilkingDuration:\s*(\d+)/);
+      if (milkDurMatch) parsedData.milkingDuration = parseInt(milkDurMatch[1], 10);
+
+      const avgMFMatch = line.match(/AverageMilkFlow:\s*(\d+)/);
+      if (avgMFMatch) parsedData.avgMilkFlow = parseInt(avgMFMatch[1], 10) * 10;
+
+      const maxMFMatch = line.match(/MaxMilkFlow:\s*(\d+)/);
+      if (maxMFMatch) parsedData.maxMilkFlow = parseInt(maxMFMatch[1], 10) * 10;
+
+      const reattachMatch = line.match(/ReattachAttempts:\s*(\d+)/);
+      if (reattachMatch) parsedData.reattachAttempts = parseInt(reattachMatch[1], 10);
 
       if (line.includes('FINAL RESULTS') || (line.includes('AmountTotal') && line.includes('CurrentMF'))) {
         const progressMatch = line.match(/AmountTotal:\s*([\d.]+)\s*kg.*?CurrentMF:\s*(\d+)g\/min.*?AmountQTR_1-4:.*?\/ (\d+)\|(\d+)\|(\d+)\|(\d+)/);
@@ -297,11 +323,20 @@ export default function App() {
         events.push({ time: t, type: 'Abnahme', desc: line.split('DEBUG ')[1] || 'Viertel abgenommen' });
       }
 
-      if (line.includes('MLK_QTR_ABORT')) {
-        parsedData.anomalies.push({ time: t, desc: 'Abbruch in QTR-Steuerung erkannt (MLK_QTR_ABORT)' });
+      // Reattach-Event: nur wenn AMS gerade in diesen Zustand eintritt (Runtime 0.000)
+      if (line.match(/MLK_AMS State:\s+MLK_AMS_AUTOMATIC_REATTACH/) && line.includes('Runtime:\t0.000') && t !== lastReattachEventTime) {
+        events.push({ time: t, type: 'Reattach', desc: 'Automatischer Neuansatz gestartet' });
+        lastReattachEventTime = t;
       }
-      if (line.includes('IncompleteWarning')) {
-        parsedData.anomalies.push({ time: t, desc: 'Warnung: Gemelk unvollständig (IncompleteWarning)' });
+
+      // Bug-fix: nur wenn State AKTUELL ABORT ist, nicht wenn es lastState ist
+      if (line.match(/\[MLK_QTR\]\s+\S+\s+State:\s+MLK_QTR_ABORT\b/)) {
+        parsedData.anomalies.push({ time: t, desc: 'Abbruch in QTR-Steuerung (MLK_QTR_ABORT)' });
+      }
+      // Bug-fix: nur Viertel mit Wert > 0 flaggen
+      const incompleteWarnMatch = line.match(/TSR3_IncompleteWarning\[(\w+)\]:\s*(\d+)/);
+      if (incompleteWarnMatch && parseInt(incompleteWarnMatch[2], 10) > 0) {
+        parsedData.anomalies.push({ time: t, desc: `Gemelk unvollständig: Viertel ${incompleteWarnMatch[1]}` });
       }
     });
 
@@ -378,7 +413,7 @@ export default function App() {
 
     let calcMaxAmount = 1000;
     let calcMaxFlow = 500;
-    
+
     finalChartData.forEach(d => {
       calcMaxAmount = Math.max(calcMaxAmount, d.amountTotal, d.amountRR, d.amountRL, d.amountFL, d.amountFR);
       calcMaxFlow = Math.max(calcMaxFlow, d.flowTotal, d.flowRR, d.flowRL, d.flowFL, d.flowFR);
@@ -387,10 +422,30 @@ export default function App() {
     calcMaxAmount = Math.ceil(calcMaxAmount * 1.05);
     calcMaxFlow = Math.ceil(calcMaxFlow * 1.05);
 
+    // Signal-Segmente berechnen: Für jedes Signal + Viertel die Zeitbereiche wo Wert=1
+    const computeSegments = (key) => {
+      const segs = [];
+      let segStart = null;
+      for (const d of finalChartData) {
+        const val = d.signals[key];
+        if (val > 0 && segStart === null) segStart = d.time;
+        if (val === 0 && segStart !== null) { segs.push({ start: segStart, end: d.time }); segStart = null; }
+      }
+      if (segStart !== null && finalChartData.length > 0) segs.push({ start: segStart, end: finalChartData[finalChartData.length - 1].time });
+      return segs;
+    };
+    const signalSegments = {
+      milkflow: { RR: computeSegments('mfRR'), RL: computeSegments('mfRL'), FL: computeSegments('mfFL'), FR: computeSegments('mfFR') },
+      omp:      { RR: computeSegments('ompRR'), RL: computeSegments('ompRL'), FL: computeSegments('ompFL'), FR: computeSegments('ompFR') },
+      color:    { RR: computeSegments('colRR'), RL: computeSegments('colRL'), FL: computeSegments('colFL'), FR: computeSegments('colFR') },
+      conduct:  { RR: computeSegments('conRR'), RL: computeSegments('conRL'), FL: computeSegments('conFL'), FR: computeSegments('conFR') },
+    };
+
     setLogData({
       ...parsedData,
       events: events.sort((a, b) => a.time - b.time),
       chartData: finalChartData,
+      signalSegments,
       parameters,
       maxAmount: calcMaxAmount,
       maxFlow: calcMaxFlow
@@ -569,7 +624,8 @@ export default function App() {
     else if (eventType === 'Kickoff') IconToUse = AlertTriangle;
     else if (eventType === 'Milkflow') IconToUse = Droplets;
     else if (eventType === 'Abnahme') IconToUse = Activity;
-    else if (eventType === 'OMP') IconToUse = Info;
+    else if (eventType === 'OMP') IconToUse = AlertTriangle;
+    else if (eventType === 'Reattach') IconToUse = RefreshCw;
 
     return (
       <foreignObject x={x - 15} y={0} width={30} height={40} style={{ opacity }}>
@@ -632,7 +688,7 @@ export default function App() {
       {logData && (
         <div className="max-w-7xl mx-auto space-y-6">
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Info size={18} />
@@ -640,44 +696,60 @@ export default function App() {
               </div>
               <p className="text-3xl text-slate-800">{logData.animalNr}</p>
             </div>
-            
+
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Droplets size={18} />
-                <span className="uppercase text-xs tracking-wider">Gesamtmenge (Erwartet / Gemolken)</span>
+                <span className="uppercase text-xs tracking-wider">Gesamtmenge</span>
               </div>
-              <p className="text-3xl text-slate-800">
-                {logData.actualTotal} <span className="text-lg text-slate-400">/ {logData.expectedTotal} g</span>
+              <p className="text-2xl text-slate-800">
+                {logData.actualTotal} <span className="text-base text-slate-400">/ {logData.expectedTotal} g</span>
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm lg:col-span-2">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
-                <List size={18} />
-                <span className="uppercase text-xs tracking-wider">Viertelmengen (Erwartet & Gemolken)</span>
+                <Clock size={18} />
+                <span className="uppercase text-xs tracking-wider">Melkdauer</span>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center mt-2">
-                <div>
-                  <div className="text-xs text-slate-400 mb-1">HL (RL)</div>
-                  <div className="text-lg text-slate-800">{logData.actualQtr.RL}</div>
-                  <div className="text-xs text-slate-400">{logData.expectedQtr.RL}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400 mb-1">VL (FL)</div>
-                  <div className="text-lg text-slate-800">{logData.actualQtr.FL}</div>
-                  <div className="text-xs text-slate-400">{logData.expectedQtr.FL}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400 mb-1">HR (RR)</div>
-                  <div className="text-lg text-slate-800">{logData.actualQtr.RR}</div>
-                  <div className="text-xs text-slate-400">{logData.expectedQtr.RR}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400 mb-1">VR (FR)</div>
-                  <div className="text-lg text-slate-800">{logData.actualQtr.FR}</div>
-                  <div className="text-xs text-slate-400">{logData.expectedQtr.FR}</div>
-                </div>
+              <p className="text-2xl text-slate-800">
+                {logData.milkingDuration > 0 ? `${logData.milkingDuration} s` : '—'}
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 text-slate-500 mb-3">
+                <Activity size={18} />
+                <span className="uppercase text-xs tracking-wider">Ø Milchfluss</span>
               </div>
+              <p className="text-2xl text-slate-800">
+                {logData.avgMilkFlow > 0 ? `${logData.avgMilkFlow} g/min` : '—'}
+                {logData.maxMilkFlow > 0 && <span className="text-sm text-slate-400 ml-1">max {logData.maxMilkFlow}</span>}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 text-slate-500 mb-3">
+              <List size={18} />
+              <span className="uppercase text-xs tracking-wider">Viertelmengen — Gemolken / Erwartet</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center mt-2">
+              {[{key:'RL',label:'HL'},{key:'FL',label:'VL'},{key:'RR',label:'HR'},{key:'FR',label:'VR'}].map(q => {
+                const pct = logData.expectedQtr[q.key] > 0
+                  ? Math.round(logData.actualQtr[q.key] / logData.expectedQtr[q.key] * 100) : 0;
+                const warn = pct < 70;
+                return (
+                  <div key={q.key}>
+                    <div className="text-xs text-slate-400 mb-1">{q.label}</div>
+                    <div className={`text-lg ${warn ? 'text-orange-500 font-semibold' : 'text-slate-800'}`}>
+                      {logData.actualQtr[q.key]}
+                    </div>
+                    <div className="text-xs text-slate-400">/ {logData.expectedQtr[q.key]} g</div>
+                    <div className={`text-xs mt-0.5 ${warn ? 'text-orange-400' : 'text-slate-300'}`}>{pct}%</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -759,98 +831,116 @@ export default function App() {
                     />
                   )}
                   
-                  {/* Die Total-Werte wurden nach ganz oben gezogen, um in der Legende ganz links zu erscheinen */}
-                  <Line yAxisId="amount" type="monotone" dataKey="amountTotal" name="Menge Total" stroke="#64748b" strokeWidth={2.5} dot={false} hide={hiddenSeries.amountTotal} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Fluss Total" stroke="#3b82f6" strokeWidth={2.5} dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
+                  {/* Signale als farbige Hintergrundflächen — je Signal-Typ ein eigener Alphawert */}
+                  {activeSignals.milkflow && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
+                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
+                    return logData.signalSegments.milkflow[q].map((seg, i) => (
+                      <ReferenceArea key={`mf-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.10} stroke="none" />
+                    ));
+                  })}
+                  {activeSignals.omp && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
+                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
+                    return logData.signalSegments.omp[q].map((seg, i) => (
+                      <ReferenceArea key={`omp-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.15} stroke={colors[qi]} strokeOpacity={0.3} strokeWidth={0.5} />
+                    ));
+                  })}
+                  {activeSignals.color && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
+                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
+                    return logData.signalSegments.color[q].map((seg, i) => (
+                      <ReferenceArea key={`col-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.18} stroke="none" />
+                    ));
+                  })}
+                  {activeSignals.conduct && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
+                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
+                    return logData.signalSegments.conduct[q].map((seg, i) => (
+                      <ReferenceArea key={`con-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.13} stroke="none" />
+                    ));
+                  })}
 
+                  {/* Kickoffs als vertikale Linien (zuschaltbar) */}
+                  {showKickoffsOnChart && logData.events.filter(e => e.type === 'Kickoff').map((event, i) => (
+                    <ReferenceLine key={`kickoff-line-${i}`} x={event.time} yAxisId="flow" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
+                  ))}
+
+                  {/* Reattach als vertikale Linien (zuschaltbar) */}
+                  {showReattachOnChart && logData.events.filter(e => e.type === 'Reattach').map((event, i) => (
+                    <ReferenceLine key={`reattach-line-${i}`} x={event.time} yAxisId="flow" stroke="#8b5cf6" strokeWidth={2} />
+                  ))}
+
+                  {/* Viertel-Linien zuerst → Total ganz rechts in der Legende */}
                   <Line yAxisId="amount" type="monotone" dataKey="amountRR" name="Menge HR" stroke="#ef4444" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRR} isAnimationActive={false} />
                   <Line yAxisId="flow" type="monotone" dataKey="flowRR" name="Fluss HR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRR} isAnimationActive={false} />
-                  
+
                   <Line yAxisId="amount" type="monotone" dataKey="amountRL" name="Menge HL" stroke="#f97316" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRL} isAnimationActive={false} />
                   <Line yAxisId="flow" type="monotone" dataKey="flowRL" name="Fluss HL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRL} isAnimationActive={false} />
-                  
+
                   <Line yAxisId="amount" type="monotone" dataKey="amountFL" name="Menge VL" stroke="#10b981" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFL} isAnimationActive={false} />
                   <Line yAxisId="flow" type="monotone" dataKey="flowFL" name="Fluss VL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFL} isAnimationActive={false} />
-                  
+
                   <Line yAxisId="amount" type="monotone" dataKey="amountFR" name="Menge VR" stroke="#8b5cf6" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFR} isAnimationActive={false} />
                   <Line yAxisId="flow" type="monotone" dataKey="flowFR" name="Fluss VR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFR} isAnimationActive={false} />
 
-                  {/* Zuschaltbare Signal-Linien (als rechteckige Signalform) */}
-                  {activeSignals.milkflow && (
-                    <React.Fragment>
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.mfRR" stroke="#ef4444" strokeWidth={1.5} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.mfRL" stroke="#f97316" strokeWidth={1.5} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.mfFL" stroke="#10b981" strokeWidth={1.5} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.mfFR" stroke="#8b5cf6" strokeWidth={1.5} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                    </React.Fragment>
-                  )}
-                  {activeSignals.omp && (
-                    <React.Fragment>
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.ompRR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="3 3" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.ompRL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="3 3" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.ompFL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="3 3" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.ompFR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="3 3" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                    </React.Fragment>
-                  )}
-                  {activeSignals.color && (
-                    <React.Fragment>
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.colRR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="1 4" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.colRL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="1 4" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.colFL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="1 4" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.colFR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="1 4" dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                    </React.Fragment>
-                  )}
-                  {activeSignals.conduct && (
-                    <React.Fragment>
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.conRR" stroke="#ef4444" strokeWidth={2} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.conRL" stroke="#f97316" strokeWidth={2} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.conFL" stroke="#10b981" strokeWidth={2} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                      <Line yAxisId="signal" type="stepAfter" dataKey="signals.conFR" stroke="#8b5cf6" strokeWidth={2} dot={false} legendType="none" tooltipType="none" isAnimationActive={false} />
-                    </React.Fragment>
-                  )}
+                  {/* Total ganz rechts in der Legende */}
+                  <Line yAxisId="amount" type="monotone" dataKey="amountTotal" name="Menge Total" stroke="#64748b" strokeWidth={2.5} dot={false} hide={hiddenSeries.amountTotal} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Fluss Total" stroke="#3b82f6" strokeWidth={2.5} dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             
-            {/* Toolbar zum Zuschalten der Signale */}
-            <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t border-slate-100">
-              <span className="text-sm text-slate-500 uppercase tracking-wide">Signal-Verläufe einblenden:</span>
-              <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={activeSignals.milkflow} 
-                  onChange={() => setActiveSignals(prev => ({...prev, milkflow: !prev.milkflow}))} 
-                  className="rounded border-slate-300 text-blue-500" 
-                />
-                Milkflow
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={activeSignals.omp} 
-                  onChange={() => setActiveSignals(prev => ({...prev, omp: !prev.omp}))} 
-                  className="rounded border-slate-300 text-blue-500" 
-                />
-                OMP
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={activeSignals.color} 
-                  onChange={() => setActiveSignals(prev => ({...prev, color: !prev.color}))} 
-                  className="rounded border-slate-300 text-blue-500" 
-                />
-                Color
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={activeSignals.conduct} 
-                  onChange={() => setActiveSignals(prev => ({...prev, conduct: !prev.conduct}))} 
-                  className="rounded border-slate-300 text-blue-500" 
-                />
-                Conduct
-              </label>
+            {/* Toolbar */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 items-center">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Signale (Hintergrund):</span>
+                {[
+                  { key: 'milkflow', label: 'Milkflow', hint: 'Milchfluss aktiv (HR/HL/VL/VR)' },
+                  { key: 'omp',      label: 'OMP',      hint: 'Übermilkschutz aktiv' },
+                  { key: 'color',    label: 'Color',    hint: 'Farbsensor-Alarm' },
+                  { key: 'conduct',  label: 'Conduct',  hint: 'Leitfähigkeits-Alarm' },
+                ].map(s => (
+                  <label key={s.key} title={s.hint} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={activeSignals[s.key]}
+                      onChange={() => setActiveSignals(prev => ({...prev, [s.key]: !prev[s.key]}))}
+                      className="rounded border-slate-300 text-blue-500"
+                    />
+                    {s.label}
+                  </label>
+                ))}
+                {/* Mini-Legende der Viertel-Farben */}
+                {Object.values(activeSignals).some(Boolean) && (
+                  <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200 text-xs text-slate-400">
+                    {[['#ef4444','HR'],['#f97316','HL'],['#10b981','VL'],['#8b5cf6','VR']].map(([c,l]) => (
+                      <span key={l} className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: c, opacity: 0.6 }}/>
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4 ml-auto">
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Im Graph zeigen:</span>
+                <label title="Kickoffs als orange gestrichelte Linie" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showKickoffsOnChart}
+                    onChange={() => setShowKickoffsOnChart(p => !p)}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="border-b-2 border-dashed border-orange-400 leading-none">Kickoffs</span>
+                </label>
+                <label title="Reattach-Zeitpunkte als violette Linie" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showReattachOnChart}
+                    onChange={() => setShowReattachOnChart(p => !p)}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="border-b-2 border-purple-400 leading-none">Reattach</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -946,15 +1036,19 @@ export default function App() {
                       )}
                       
                       <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 border-white
-                        ${event.type === 'Kickoff' || event.type === 'OMP' ? (isHovered || isLocked ? 'bg-red-200 text-red-600' : 'bg-red-100 text-red-500') : ''}
+                        ${event.type === 'Kickoff' ? (isHovered || isLocked ? 'bg-orange-200 text-orange-600' : 'bg-orange-100 text-orange-500') : ''}
+                        ${event.type === 'OMP' ? (isHovered || isLocked ? 'bg-red-200 text-red-600' : 'bg-red-100 text-red-500') : ''}
                         ${event.type === 'Milkflow' ? (isHovered || isLocked ? 'bg-blue-200 text-blue-600' : 'bg-blue-100 text-blue-500') : ''}
                         ${event.type === 'Abnahme' ? (isHovered || isLocked ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500') : ''}
-                        ${!['Kickoff', 'OMP', 'Milkflow', 'Abnahme'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
+                        ${event.type === 'Reattach' ? (isHovered || isLocked ? 'bg-purple-200 text-purple-700' : 'bg-purple-100 text-purple-500') : ''}
+                        ${!['Kickoff', 'OMP', 'Milkflow', 'Abnahme', 'Reattach'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
                       `}>
-                        {(event.type === 'Kickoff' || event.type === 'OMP') && <AlertTriangle size={14} />}
+                        {event.type === 'Kickoff' && <AlertTriangle size={14} />}
+                        {event.type === 'OMP' && <AlertTriangle size={14} />}
                         {event.type === 'Milkflow' && <Droplets size={14} />}
                         {event.type === 'Abnahme' && <Activity size={14} />}
-                        {!['Kickoff', 'OMP', 'Milkflow', 'Abnahme'].includes(event.type) && <Info size={14} />}
+                        {event.type === 'Reattach' && <RefreshCw size={14} />}
+                        {!['Kickoff', 'OMP', 'Milkflow', 'Abnahme', 'Reattach'].includes(event.type) && <Info size={14} />}
                         
                         {isLocked && (
                           <div className="absolute -top-1 -right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
@@ -1003,10 +1097,14 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                {[{key: 'RL', label: 'HL (RL)'}, {key: 'FL', label: 'VL (FL)'}, {key: 'RR', label: 'HR (RR)'}, {key: 'FR', label: 'VR (FR)'}].map(q => (
-                  <div key={q.key} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm text-center">
-                    <div className="text-sm text-slate-600 mb-3 border-b border-slate-100 pb-2">{q.label}</div>
-                    <div className="space-y-3">
+                {[{key: 'RL', label: 'HL (RL)'}, {key: 'FL', label: 'VL (FL)'}, {key: 'RR', label: 'HR (RR)'}, {key: 'FR', label: 'VR (FR)'}].map(q => {
+                  const detTime = logData.milkFlowDetectionTime[q.key];
+                  const detTries = logData.milkFlowDetectionTries[q.key];
+                  const detectionSlow = detTime > 90;
+                  return (
+                  <div key={q.key} className={`border rounded-lg p-4 shadow-sm text-center ${detectionSlow ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+                    <div className={`text-sm mb-3 border-b pb-2 ${detectionSlow ? 'text-orange-700 border-orange-100' : 'text-slate-600 border-slate-100'}`}>{q.label}</div>
+                    <div className="space-y-2.5">
                       <div>
                         <div className="text-xs text-slate-400">Menge</div>
                         <div className="text-lg text-slate-800">{logData.finalResults.qtrAmount[q.key]} g</div>
@@ -1021,13 +1119,22 @@ export default function App() {
                           <div className="text-sm text-slate-700">{logData.finalResults.milkTime[q.key]} s</div>
                         </div>
                         <div>
-                          <div className="text-xs text-slate-400">MilkTimeMF</div>
+                          <div className="text-xs text-slate-400">MF-Time</div>
                           <div className="text-sm text-slate-700">{logData.finalResults.milkTimeMF[q.key]} s</div>
                         </div>
                       </div>
+                      {detTime > 0 && (
+                        <div className={`pt-2 border-t ${detectionSlow ? 'border-orange-100' : 'border-slate-100'}`}>
+                          <div className="text-xs text-slate-400">Erkennungszeit</div>
+                          <div className={`text-sm font-medium ${detectionSlow ? 'text-orange-600' : 'text-slate-700'}`}>
+                            {detTime} s {detTries > 1 && <span className="text-xs font-normal">({detTries}× Versuch)</span>}
+                            {detectionSlow && <span className="ml-1 text-xs">⚠</span>}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {logData.finalResults.messages.length > 0 && (
