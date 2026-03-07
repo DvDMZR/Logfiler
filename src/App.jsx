@@ -38,6 +38,7 @@ import {
 export default function App() {
   const [logData, setLogData] = useState(null);
   const [fileName, setFileName] = useState('');
+  const [parseError, setParseError] = useState(false);
   const [showParameters, setShowParameters] = useState(false);
   
   const [hiddenSeries, setHiddenSeries] = useState({
@@ -442,6 +443,15 @@ export default function App() {
       conduct:  { RR: computeSegments('conRR'), RL: computeSegments('conRL'), FL: computeSegments('conFL'), FR: computeSegments('conFR') },
     };
 
+    if (finalChartData.length === 0) {
+      setParseError(true);
+      setLogData(null);
+      setLockedHighlights([]);
+      setHoverHighlight(null);
+      return;
+    }
+
+    setParseError(false);
     setLogData({
       ...parsedData,
       events: events.sort((a, b) => a.time - b.time),
@@ -451,7 +461,7 @@ export default function App() {
       maxAmount: calcMaxAmount,
       maxFlow: calcMaxFlow
     });
-    
+
     setLockedHighlights([]);
     setHoverHighlight(null);
   }, []);
@@ -460,6 +470,7 @@ export default function App() {
     const file = e.target.files[0];
     if (!file) return;
     setFileName(file.name);
+    setParseError(false);
     const reader = new FileReader();
     reader.onload = (evt) => parseLogFile(evt.target.result);
     reader.readAsText(file);
@@ -678,6 +689,12 @@ export default function App() {
             <span>Current file: {fileName}</span>
           </div>
         )}
+        {parseError && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
+            <AlertTriangle size={16} />
+            Could not parse this file. Please upload a valid milking robot log (.txt).
+          </div>
+        )}
       </div>
 
       {!logData && (
@@ -861,11 +878,11 @@ export default function App() {
                   <Line yAxisId="amount" type="monotone" dataKey="amountRL" name="Amount RL" stroke="#f97316" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRL} isAnimationActive={false} />
                   <Line yAxisId="amount" type="monotone" dataKey="amountFL" name="Amount FL" stroke="#10b981" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFL} isAnimationActive={false} />
                   <Line yAxisId="amount" type="monotone" dataKey="amountFR" name="Amount FR" stroke="#8b5cf6" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFR} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Flow Total" stroke="#3b82f6" strokeWidth={2.5} dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowRR" name="Flow RR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRR} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowRL" name="Flow RL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRL} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowFL" name="Flow FL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFL} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowFR" name="Flow FR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFR} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Flow Total" stroke="#3b82f6" strokeWidth={2.5} strokeDasharray="5 3" dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowRR" name="Flow RR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5 3" dot={false} hide={hiddenSeries.flowRR} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowRL" name="Flow RL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 3" dot={false} hide={hiddenSeries.flowRL} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowFL" name="Flow FL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="5 3" dot={false} hide={hiddenSeries.flowFL} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowFR" name="Flow FR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="5 3" dot={false} hide={hiddenSeries.flowFR} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
