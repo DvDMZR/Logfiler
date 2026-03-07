@@ -35,6 +35,8 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
+const APP_VERSION = '0.5.1';
+
 export default function App() {
   const [logData, setLogData] = useState(null);
   const [fileName, setFileName] = useState('');
@@ -63,6 +65,8 @@ export default function App() {
 
   const [showKickoffsOnChart, setShowKickoffsOnChart] = useState(false);
   const [showReattachOnChart, setShowReattachOnChart] = useState(false);
+  const [showTooltipAms, setShowTooltipAms] = useState(true);
+  const [showTooltipQtrStates, setShowTooltipQtrStates] = useState(true);
 
   const [lockedHighlights, setLockedHighlights] = useState([]);
   const [hoverHighlight, setHoverHighlight] = useState(null);
@@ -558,7 +562,7 @@ export default function App() {
     });
   };
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload, label, showAms, showQtr }) => {
     if (active && payload && payload.length) {
       const visiblePayload = payload.filter(entry => entry.color !== 'transparent' && !entry.name.includes('signals.') && !entry.name.startsWith('signals'));
       const tooltipStates = payload[0]?.payload?.qtrStates;
@@ -571,7 +575,7 @@ export default function App() {
             <p className="text-slate-500 uppercase text-xs tracking-wide mb-1">
               Time: {label} s
             </p>
-            {amsState && (
+            {showAms && amsState && (
               <p className="text-slate-700 text-sm">
                 Status: {amsState}
               </p>
@@ -583,9 +587,9 @@ export default function App() {
               return (
                 <div key={index} className="flex items-center justify-between gap-4">
                   <span className="flex items-center gap-2 text-slate-600 text-sm">
-                    <span 
-                      className="w-2 h-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: entry.color }} 
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: entry.color }}
                     />
                     <span className="truncate">{entry.name}</span>
                   </span>
@@ -596,8 +600,8 @@ export default function App() {
               );
             })}
           </div>
-          
-          {tooltipStates && (
+
+          {showQtr && tooltipStates && (
             <div className="mt-4 pt-3 border-t border-slate-100">
               <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Quarter States</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
@@ -667,7 +671,10 @@ export default function App() {
       <div className="max-w-screen-2xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl text-slate-900 tracking-tight">Milking Robot Log Analysis</h1>
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-2xl text-slate-900 tracking-tight">Milking Robot Log Analysis</h1>
+              <span className="text-xs text-slate-400 font-mono">v{APP_VERSION}</span>
+            </div>
             <p className="text-slate-500 mt-1">Analysis and Visualization of Process Data</p>
           </div>
           <div className="relative">
@@ -826,7 +833,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 100 }} />
+                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -954,6 +961,24 @@ export default function App() {
                   </label>
                 ))}
                 {/* Mini-Legende der Viertel-Farben */}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4">
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Tooltip:</span>
+                {[
+                  { key: 'ams', label: 'AMS Status', state: showTooltipAms, set: setShowTooltipAms },
+                  { key: 'qtr', label: 'Qu. States', state: showTooltipQtrStates, set: setShowTooltipQtrStates },
+                ].map(s => (
+                  <label key={s.key} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={s.state}
+                      onChange={() => s.set(prev => !prev)}
+                      className="rounded border-slate-300 text-blue-500"
+                    />
+                    {s.label}
+                  </label>
+                ))}
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4 ml-auto">
