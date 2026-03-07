@@ -305,39 +305,39 @@ export default function App() {
 
       const ompFlagMatch = line.match(/RECEIVE OMP(\d) FLAG:\s*=\s*true/);
       if (ompFlagMatch) {
-        events.push({ time: t, type: 'OMP', desc: `OMP${ompFlagMatch[1]} Flag empfangen` });
+        events.push({ time: t, type: 'OMP', desc: `OMP${ompFlagMatch[1]} flag received` });
       }
 
       if (line.includes('Abort attach or Kickoff')) {
-        events.push({ time: t, type: 'Kickoff', desc: line.split('DEBUG ')[1] || 'Kickoff erkannt' });
+        events.push({ time: t, type: 'Kickoff', desc: line.split('DEBUG ')[1] || 'Kickoff detected' });
       }
       if (line.includes('Milkflow detected') && !line.includes('Analyze milk')) {
-        events.push({ time: t, type: 'Milkflow', desc: line.split('DEBUG ')[1] || 'Milchfluss erkannt' });
+        events.push({ time: t, type: 'Milkflow', desc: line.split('DEBUG ')[1] || 'Milk flow detected' });
       }
       if (line.includes('MLK_AMS_DETACH_CLUSTER')) {
-        events.push({ time: t, type: 'Abnahme', desc: 'Cluster Abnahme Befehl (Detach)' });
+        events.push({ time: t, type: 'Detach', desc: 'Cluster detach command' });
       }
       if (line.includes('DetachThresholdReached = true')) {
-        events.push({ time: t, type: 'Abnahme', desc: 'Abnahme-Schwellenwert erreicht' });
+        events.push({ time: t, type: 'Detach', desc: 'Detach threshold reached' });
       }
       if (line.match(/Detach teat \(milk\):\s*\d+\s*due to/)) {
-        events.push({ time: t, type: 'Abnahme', desc: line.split('DEBUG ')[1] || 'Viertel abgenommen' });
+        events.push({ time: t, type: 'Detach', desc: line.split('DEBUG ')[1] || 'Quarter detached' });
       }
 
       // Reattach-Event: nur wenn AMS gerade in diesen Zustand eintritt (Runtime 0.000)
       if (line.match(/MLK_AMS State:\s+MLK_AMS_AUTOMATIC_REATTACH/) && line.includes('Runtime:\t0.000') && t !== lastReattachEventTime) {
-        events.push({ time: t, type: 'Reattach', desc: 'Automatischer Neuansatz gestartet' });
+        events.push({ time: t, type: 'Reattach', desc: 'Automatic reattach started' });
         lastReattachEventTime = t;
       }
 
       // Bug-fix: nur wenn State AKTUELL ABORT ist, nicht wenn es lastState ist
       if (line.match(/\[MLK_QTR\]\s+\S+\s+State:\s+MLK_QTR_ABORT\b/)) {
-        parsedData.anomalies.push({ time: t, desc: 'Abbruch in QTR-Steuerung (MLK_QTR_ABORT)' });
+        parsedData.anomalies.push({ time: t, desc: 'Abort in QTR control (MLK_QTR_ABORT)' });
       }
       // Bug-fix: nur Viertel mit Wert > 0 flaggen
       const incompleteWarnMatch = line.match(/TSR3_IncompleteWarning\[(\w+)\]:\s*(\d+)/);
       if (incompleteWarnMatch && parseInt(incompleteWarnMatch[2], 10) > 0) {
-        parsedData.anomalies.push({ time: t, desc: `Gemelk unvollständig: Viertel ${incompleteWarnMatch[1]}` });
+        parsedData.anomalies.push({ time: t, desc: `Milking incomplete: quarter ${incompleteWarnMatch[1]}` });
       }
     });
 
@@ -348,7 +348,7 @@ export default function App() {
       if (maxQ > 0 && maxQ - minQ > 800) {
         parsedData.anomalies.push({ 
           time: null, 
-          desc: `Starke Abweichung zwischen den Viertelgemelken (${minQ}g vs ${maxQ}g)` 
+          desc: `Large deviation between quarter yields (${minQ}g vs ${maxQ}g)`
         });
       }
     }
@@ -558,7 +558,7 @@ export default function App() {
         <div className="bg-white/95 p-4 border border-slate-200 shadow-sm rounded-lg backdrop-blur-sm min-w-[280px]">
           <div className="mb-3 border-b border-slate-100 pb-2">
             <p className="text-slate-500 uppercase text-xs tracking-wide mb-1">
-              Zeitpunkt: {label} s
+              Time: {label} s
             </p>
             {amsState && (
               <p className="text-slate-700 text-sm">
@@ -626,7 +626,7 @@ export default function App() {
     if (isAnomaly) IconToUse = AlertTriangle;
     else if (eventType === 'Kickoff') IconToUse = AlertTriangle;
     else if (eventType === 'Milkflow') IconToUse = Droplets;
-    else if (eventType === 'Abnahme') IconToUse = Activity;
+    else if (eventType === 'Detach') IconToUse = Activity;
     else if (eventType === 'OMP') IconToUse = AlertTriangle;
     else if (eventType === 'Reattach') IconToUse = RefreshCw;
 
@@ -653,11 +653,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
       
-      <div className="max-w-7xl mx-auto mb-8">
+      <div className="max-w-screen-2xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl text-slate-900 tracking-tight">Melkroboter Log-Analyse</h1>
-            <p className="text-slate-500 mt-1">Auswertung und Visualisierung von Prozessdaten</p>
+            <h1 className="text-2xl text-slate-900 tracking-tight">Milking Robot Log Analysis</h1>
+            <p className="text-slate-500 mt-1">Analysis and Visualization of Process Data</p>
           </div>
           <div className="relative">
             <input
@@ -668,34 +668,34 @@ export default function App() {
             />
             <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
               <UploadCloud size={20} />
-              <span>{fileName ? 'Andere Datei wählen' : 'Log-Datei hochladen'}</span>
+              <span>{fileName ? 'Choose Another File' : 'Upload Log File'}</span>
             </div>
           </div>
         </div>
         {fileName && (
           <div className="flex items-center gap-2 text-sm text-slate-500 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
             <FileText size={16} />
-            <span>Aktuelle Datei: {fileName}</span>
+            <span>Current file: {fileName}</span>
           </div>
         )}
       </div>
 
       {!logData && (
-        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-slate-200 border-dashed text-slate-500 shadow-sm">
+        <div className="max-w-screen-2xl mx-auto flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-slate-200 border-dashed text-slate-500 shadow-sm">
           <Activity size={48} className="text-slate-300 mb-4" />
-          <p className="text-lg text-slate-600">Keine Daten geladen</p>
-          <p className="mt-1">Bitte lade eine gültige .txt Log-Datei hoch, um die Analyse zu starten.</p>
+          <p className="text-lg text-slate-600">No data loaded</p>
+          <p className="mt-1">Please upload a valid .txt log file to start the analysis.</p>
         </div>
       )}
 
       {logData && (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-screen-2xl mx-auto space-y-6">
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Info size={18} />
-                <span className="uppercase text-xs tracking-wider">Tiernummer</span>
+                <span className="uppercase text-xs tracking-wider">Animal ID</span>
               </div>
               <p className="text-3xl text-slate-800">{logData.animalNr}</p>
             </div>
@@ -703,7 +703,7 @@ export default function App() {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Droplets size={18} />
-                <span className="uppercase text-xs tracking-wider">Gesamtmenge</span>
+                <span className="uppercase text-xs tracking-wider">Total Amount</span>
               </div>
               <p className="text-2xl text-slate-800">
                 {logData.actualTotal} <span className="text-base text-slate-400">/ {logData.expectedTotal} g</span>
@@ -713,7 +713,7 @@ export default function App() {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Clock size={18} />
-                <span className="uppercase text-xs tracking-wider">Melkdauer</span>
+                <span className="uppercase text-xs tracking-wider">Milking Duration</span>
               </div>
               <p className="text-2xl text-slate-800">
                 {logData.milkingDuration > 0 ? `${logData.milkingDuration} s` : '—'}
@@ -723,7 +723,7 @@ export default function App() {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Activity size={18} />
-                <span className="uppercase text-xs tracking-wider">Ø Milchfluss</span>
+                <span className="uppercase text-xs tracking-wider">Avg. Milk Flow</span>
               </div>
               <p className="text-2xl text-slate-800">
                 {logData.avgMilkFlow > 0 ? `${logData.avgMilkFlow} g/min` : '—'}
@@ -735,10 +735,10 @@ export default function App() {
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 text-slate-500 mb-3">
               <List size={18} />
-              <span className="uppercase text-xs tracking-wider">Viertelmengen — Gemolken / Erwartet</span>
+              <span className="uppercase text-xs tracking-wider">Quarter Amounts — Milked / Expected</span>
             </div>
             <div className="grid grid-cols-4 gap-2 text-center mt-2">
-              {[{key:'RL',label:'HL'},{key:'FL',label:'VL'},{key:'RR',label:'HR'},{key:'FR',label:'VR'}].map(q => {
+              {[{key:'RR',label:'RR'},{key:'RL',label:'RL'},{key:'FL',label:'FL'},{key:'FR',label:'FR'}].map(q => {
                 const pct = logData.expectedQtr[q.key] > 0
                   ? Math.round(logData.actualQtr[q.key] / logData.expectedQtr[q.key] * 100) : 0;
                 const warn = pct < 70;
@@ -909,12 +909,12 @@ export default function App() {
             {/* Toolbar */}
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 items-center">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Signale einblenden:</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Show signals:</span>
                 {[
-                  { key: 'milkflow', label: 'Milkflow', hint: 'Milchfluss aktiv (HR/HL/VL/VR)' },
-                  { key: 'omp',      label: 'OMP',      hint: 'Übermilkschutz aktiv' },
-                  { key: 'color',    label: 'Color',    hint: 'Farbsensor-Alarm' },
-                  { key: 'conduct',  label: 'Conduct',  hint: 'Leitfähigkeits-Alarm' },
+                  { key: 'milkflow', label: 'Milkflow', hint: 'Milk flow active (RR/RL/FL/FR)' },
+                  { key: 'omp',      label: 'OMP',      hint: 'Overmilk protection active' },
+                  { key: 'color',    label: 'Color',    hint: 'Color sensor alarm' },
+                  { key: 'conduct',  label: 'Conduct',  hint: 'Conductivity alarm' },
                 ].map(s => (
                   <label key={s.key} title={s.hint} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
                     <input
@@ -930,8 +930,8 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4 ml-auto">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Im Graph zeigen:</span>
-                <label title="Kickoffs als orange gestrichelte Linie" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Show in chart:</span>
+                <label title="Kickoffs as orange dashed line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
                   <input
                     type="checkbox"
                     checked={showKickoffsOnChart}
@@ -940,7 +940,7 @@ export default function App() {
                   />
                   <span className="border-b-2 border-dashed border-orange-400 leading-none">Kickoffs</span>
                 </label>
-                <label title="Reattach-Zeitpunkte als violette Linie" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                <label title="Reattach events as purple line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
                   <input
                     type="checkbox"
                     checked={showReattachOnChart}
@@ -957,7 +957,7 @@ export default function App() {
           {Object.values(activeSignals).some(Boolean) && logData && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
-                <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal-Verläufe</span>
+                <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal Traces</span>
                 <div className="flex gap-3 ml-2">
                   {[['#ef4444','RR'],['#f97316','RL'],['#10b981','FL'],['#8b5cf6','FR']].map(([c,l]) => (
                     <span key={l} className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -1021,7 +1021,7 @@ export default function App() {
               
               <div ref={timelineContainerRef} className="flex-1 overflow-y-auto pr-4 pb-10 space-y-2 relative">
                 {logData.events.length === 0 && (
-                  <p className="text-slate-400 text-center mt-10">Keine Events gefunden</p>
+                  <p className="text-slate-400 text-center mt-10">No events found</p>
                 )}
                 {logData.events.map((event, idx) => {
                   const lockedIndex = lockedHighlights.findIndex(h => h.type === 'event' && h.idx === idx);
@@ -1055,16 +1055,16 @@ export default function App() {
                         ${event.type === 'Kickoff' ? (isHovered || isLocked ? 'bg-orange-200 text-orange-600' : 'bg-orange-100 text-orange-500') : ''}
                         ${event.type === 'OMP' ? (isHovered || isLocked ? 'bg-red-200 text-red-600' : 'bg-red-100 text-red-500') : ''}
                         ${event.type === 'Milkflow' ? (isHovered || isLocked ? 'bg-blue-200 text-blue-600' : 'bg-blue-100 text-blue-500') : ''}
-                        ${event.type === 'Abnahme' ? (isHovered || isLocked ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500') : ''}
+                        ${event.type === 'Detach' ? (isHovered || isLocked ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500') : ''}
                         ${event.type === 'Reattach' ? (isHovered || isLocked ? 'bg-purple-200 text-purple-700' : 'bg-purple-100 text-purple-500') : ''}
-                        ${!['Kickoff', 'OMP', 'Milkflow', 'Abnahme', 'Reattach'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
+                        ${!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
                       `}>
                         {event.type === 'Kickoff' && <AlertTriangle size={14} />}
                         {event.type === 'OMP' && <AlertTriangle size={14} />}
                         {event.type === 'Milkflow' && <Droplets size={14} />}
-                        {event.type === 'Abnahme' && <Activity size={14} />}
+                        {event.type === 'Detach' && <Activity size={14} />}
                         {event.type === 'Reattach' && <RefreshCw size={14} />}
-                        {!['Kickoff', 'OMP', 'Milkflow', 'Abnahme', 'Reattach'].includes(event.type) && <Info size={14} />}
+                        {!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) && <Info size={14} />}
                         
                         {isLocked && (
                           <div className="absolute -top-1 -right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
@@ -1144,20 +1144,20 @@ export default function App() {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
               <div className="flex items-center gap-2 text-slate-800 mb-6 shrink-0">
                 <Flag size={20} className="text-blue-500" />
-                <h2 className="text-lg">Zusammenfassung (Final Results)</h2>
+                <h2 className="text-lg">Final Results</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Gemolkene Menge Total</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Milked Amount</div>
                   <div className="text-2xl text-slate-800">{logData.finalResults.totalKg} kg</div>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Erwartete Menge Total</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Expected Amount</div>
                   <div className="text-2xl text-slate-800">{logData.finalResults.expectedKg} kg</div>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Erfüllung</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Achievement</div>
                   <div className="text-2xl text-slate-800">{logData.finalResults.percent} %</div>
                 </div>
               </div>
@@ -1172,11 +1172,11 @@ export default function App() {
                     <div className={`text-sm mb-3 border-b pb-2 ${detectionSlow ? 'text-orange-700 border-orange-100' : 'text-slate-600 border-slate-100'}`}>{q.label}</div>
                     <div className="space-y-2.5">
                       <div>
-                        <div className="text-xs text-slate-400">Menge</div>
+                        <div className="text-xs text-slate-400">Amount</div>
                         <div className="text-lg text-slate-800">{logData.finalResults.qtrAmount[q.key]} g</div>
                       </div>
                       <div>
-                        <div className="text-xs text-slate-400">Erfüllung</div>
+                        <div className="text-xs text-slate-400">Achievement</div>
                         <div className="text-base text-slate-700">{logData.finalResults.qtrPercent[q.key]} %</div>
                       </div>
                       <div className="flex justify-center gap-4">
@@ -1191,9 +1191,9 @@ export default function App() {
                       </div>
                       {detTime > 0 && (
                         <div className={`pt-2 border-t ${detectionSlow ? 'border-orange-100' : 'border-slate-100'}`}>
-                          <div className="text-xs text-slate-400">Erkennungszeit</div>
+                          <div className="text-xs text-slate-400">Detection Time</div>
                           <div className={`text-sm font-medium ${detectionSlow ? 'text-orange-600' : 'text-slate-700'}`}>
-                            {detTime} s {detTries > 1 && <span className="text-xs font-normal">({detTries}× Versuch)</span>}
+                            {detTime} s {detTries > 1 && <span className="text-xs font-normal">({detTries}× attempt)</span>}
                             {detectionSlow && <span className="ml-1 text-xs">⚠</span>}
                           </div>
                         </div>
@@ -1207,7 +1207,7 @@ export default function App() {
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                   <div className="text-sm text-blue-800 mb-3 flex items-center gap-2">
                     <Info size={16} />
-                    Status-Meldungen (MLK_PRCS)
+                    Status Messages (MLK_PRCS)
                   </div>
                   <ul className="space-y-2">
                     {logData.finalResults.messages.map((msg, i) => (
@@ -1226,7 +1226,7 @@ export default function App() {
               onClick={() => setShowParameters(!showParameters)}
               className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 transition-colors"
             >
-              <span className="text-lg text-slate-800">Systemparameter (MLK_Parameter)</span>
+              <span className="text-lg text-slate-800">System Parameters (MLK_Parameter)</span>
               {showParameters ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-400"/>}
             </button>
             
@@ -1237,7 +1237,7 @@ export default function App() {
                     <div key={i} className="whitespace-pre truncate">{p}</div>
                   ))}
                   {logData.parameters.length === 0 && (
-                    <div>Keine Parameter im Log gefunden.</div>
+                    <div>No parameters found in log.</div>
                   )}
                 </div>
               </div>
