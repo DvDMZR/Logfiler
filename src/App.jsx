@@ -65,6 +65,7 @@ export default function App() {
 
   const [lockedHighlights, setLockedHighlights] = useState([]);
   const [hoverHighlight, setHoverHighlight] = useState(null);
+  const [hoveredTime, setHoveredTime] = useState(null);
   
   const eventRefs = useRef({});
   const timelineContainerRef = useRef(null);
@@ -483,9 +484,10 @@ export default function App() {
 
   const handleChartMouseMove = (e) => {
     if (e && e.activeLabel !== undefined && logData) {
+      setHoveredTime(e.activeLabel);
       let closestItem = null;
       let minDiff = Infinity;
-      const threshold = 2;
+      const threshold = 15;
       
       logData.events.forEach((event, idx) => {
         const diff = Math.abs(event.time - e.activeLabel);
@@ -520,6 +522,7 @@ export default function App() {
 
   const handleChartMouseLeave = () => {
     setHoverHighlight(null);
+    setHoveredTime(null);
   };
 
   const handleListItemMouseEnter = (time, type, idx) => {
@@ -546,7 +549,7 @@ export default function App() {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const visiblePayload = payload.filter(entry => entry.color !== 'transparent' && !entry.name.includes('signals.'));
+      const visiblePayload = payload.filter(entry => entry.color !== 'transparent' && !entry.name.includes('signals.') && !entry.name.startsWith('signals'));
       const tooltipStates = payload[0]?.payload?.qtrStates;
       const amsState = payload[0]?.payload?.amsState;
       const signals = payload[0]?.payload?.signals;
@@ -565,7 +568,7 @@ export default function App() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
             {visiblePayload.map((entry, index) => {
-              const isFlow = entry.name && entry.name.includes('Fluss');
+              const isFlow = entry.name && entry.name.includes('Flow');
               return (
                 <div key={index} className="flex items-center justify-between gap-4">
                   <span className="flex items-center gap-2 text-slate-600 text-sm">
@@ -585,19 +588,19 @@ export default function App() {
           
           {tooltipStates && (
             <div className="mt-4 pt-3 border-t border-slate-100">
-              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Status der Viertel</p>
+              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Quarter States</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
-                <div>HR: <span className="text-slate-500 text-xs">{tooltipStates.RR}</span></div>
-                <div>HL: <span className="text-slate-500 text-xs">{tooltipStates.RL}</span></div>
-                <div>VL: <span className="text-slate-500 text-xs">{tooltipStates.FL}</span></div>
-                <div>VR: <span className="text-slate-500 text-xs">{tooltipStates.FR}</span></div>
+                <div>RR: <span className="text-slate-500 text-xs">{tooltipStates.RR}</span></div>
+                <div>RL: <span className="text-slate-500 text-xs">{tooltipStates.RL}</span></div>
+                <div>FL: <span className="text-slate-500 text-xs">{tooltipStates.FL}</span></div>
+                <div>FR: <span className="text-slate-500 text-xs">{tooltipStates.FR}</span></div>
               </div>
             </div>
           )}
 
           {signals && (
             <div className="mt-4 pt-3 border-t border-slate-100">
-              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Signale (HR/HL/VL/VR)</p>
+              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Signals (RR/RL/FL/FR)</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
                 <div>Milkflow: <span className="text-slate-500 text-xs font-mono">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
                 <div>OMP: <span className="text-slate-500 text-xs font-mono">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
@@ -753,10 +756,12 @@ export default function App() {
             </div>
           </div>
 
+          <div className="flex gap-6 items-start">
+          <div className="flex-1 min-w-0 space-y-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-[580px] flex flex-col relative">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg text-slate-800">Verlauf: Milchfluss & Menge</h2>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">T=0 ist Attachment</span>
+              <h2 className="text-lg text-slate-800">Milkflow & Amount Over Time</h2>
+              <span className="text-xs text-slate-400 uppercase tracking-wider">T=0 is attachment</span>
             </div>
             
             <div className="flex-1 w-full mt-2">
@@ -795,10 +800,7 @@ export default function App() {
                     domain={[0, logData.maxAmount]}
                   />
                   <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 100 }} />
-                  <Legend 
-                    onClick={handleLegendClick} 
-                    wrapperStyle={{ cursor: 'pointer', fontSize: '14px', paddingTop: '10px' }} 
-                  />
+
                   
                   {lockedHighlights.map((hl, index) => {
                     const eventType = hl.type === 'event' ? logData.events[hl.idx].type : 'Anomaly';
@@ -814,13 +816,23 @@ export default function App() {
                     );
                   })}
                   
+                  {/* Shadow reference lines — all events within ±60s of cursor */}
+                  {hoveredTime !== null && logData.events
+                    .filter(ev => Math.abs(ev.time - hoveredTime) <= 60 && !(hoverHighlight?.type === 'event' && logData.events[hoverHighlight.idx]?.time === ev.time) && !lockedHighlights.some(h => h.type === 'event' && logData.events[h.idx]?.time === ev.time))
+                    .slice(0, 12)
+                    .map((ev, i) => (
+                      <ReferenceLine key={`shadow-ev-${i}`} x={ev.time} yAxisId="flow"
+                        stroke="#93c5fd" strokeWidth={0.8} strokeOpacity={0.4} strokeDasharray="3 5" />
+                    ))
+                  }
+
                   {hoverHighlight && hoverHighlight.time !== null && !lockedHighlights.some(h => h.type === hoverHighlight.type && h.idx === hoverHighlight.idx) && (
-                    <ReferenceLine 
-                      x={hoverHighlight.time} 
+                    <ReferenceLine
+                      x={hoverHighlight.time}
                       yAxisId="flow"
-                      stroke={hoverHighlight.type === 'anomaly' ? '#fca5a5' : '#93c5fd'} 
-                      strokeWidth={1} 
-                      strokeDasharray="4 4" 
+                      stroke={hoverHighlight.type === 'anomaly' ? '#fca5a5' : '#93c5fd'}
+                      strokeWidth={1}
+                      strokeDasharray="4 4"
                       label={<CustomReferenceLabel type={hoverHighlight.type} eventType={hoverHighlight.type === 'event' ? logData.events[hoverHighlight.idx].type : 'Anomaly'} indexNum="?" opacity={0.6} />}
                     />
                   )}
@@ -834,26 +846,66 @@ export default function App() {
                     <ReferenceLine key={`reattach-line-${i}`} x={event.time} yAxisId="flow" stroke="#8b5cf6" strokeWidth={2} />
                   ))}
 
-                  {/* Viertel-Linien zuerst → Total ganz rechts in der Legende */}
-                  <Line yAxisId="amount" type="monotone" dataKey="amountRR" name="Menge HR" stroke="#ef4444" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRR} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowRR" name="Fluss HR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRR} isAnimationActive={false} />
-
-                  <Line yAxisId="amount" type="monotone" dataKey="amountRL" name="Menge HL" stroke="#f97316" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRL} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowRL" name="Fluss HL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRL} isAnimationActive={false} />
-
-                  <Line yAxisId="amount" type="monotone" dataKey="amountFL" name="Menge VL" stroke="#10b981" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFL} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowFL" name="Fluss VL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFL} isAnimationActive={false} />
-
-                  <Line yAxisId="amount" type="monotone" dataKey="amountFR" name="Menge VR" stroke="#8b5cf6" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFR} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowFR" name="Fluss VR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFR} isAnimationActive={false} />
-
-                  {/* Total ganz rechts in der Legende */}
-                  <Line yAxisId="amount" type="monotone" dataKey="amountTotal" name="Menge Total" stroke="#64748b" strokeWidth={2.5} dot={false} hide={hiddenSeries.amountTotal} isAnimationActive={false} />
-                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Fluss Total" stroke="#3b82f6" strokeWidth={2.5} dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
+                  <Line yAxisId="amount" type="monotone" dataKey="amountTotal" name="Amount Total" stroke="#64748b" strokeWidth={2.5} dot={false} hide={hiddenSeries.amountTotal} isAnimationActive={false} />
+                  <Line yAxisId="amount" type="monotone" dataKey="amountRR" name="Amount RR" stroke="#ef4444" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRR} isAnimationActive={false} />
+                  <Line yAxisId="amount" type="monotone" dataKey="amountRL" name="Amount RL" stroke="#f97316" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountRL} isAnimationActive={false} />
+                  <Line yAxisId="amount" type="monotone" dataKey="amountFL" name="Amount FL" stroke="#10b981" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFL} isAnimationActive={false} />
+                  <Line yAxisId="amount" type="monotone" dataKey="amountFR" name="Amount FR" stroke="#8b5cf6" strokeWidth={1.5} dot={false} hide={hiddenSeries.amountFR} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowTotal" name="Flow Total" stroke="#3b82f6" strokeWidth={2.5} dot={false} hide={hiddenSeries.flowTotal} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowRR" name="Flow RR" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRR} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowRL" name="Flow RL" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowRL} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowFL" name="Flow FL" stroke="#10b981" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFL} isAnimationActive={false} />
+                  <Line yAxisId="flow" type="monotone" dataKey="flowFR" name="Flow FR" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="5 5" dot={false} hide={hiddenSeries.flowFR} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            
+
+            {/* Custom grouped legend */}
+            {(() => {
+              const qColors = { Total: null, RR: '#ef4444', RL: '#f97316', FL: '#10b981', FR: '#8b5cf6' };
+              const amountTotalColor = '#64748b';
+              const flowTotalColor = '#3b82f6';
+              const groups = [
+                { label: 'Amount', items: [
+                  { key: 'amountTotal', label: 'Total', color: amountTotalColor, dash: false },
+                  { key: 'amountRR',    label: 'RR',    color: '#ef4444', dash: false },
+                  { key: 'amountRL',    label: 'RL',    color: '#f97316', dash: false },
+                  { key: 'amountFL',    label: 'FL',    color: '#10b981', dash: false },
+                  { key: 'amountFR',    label: 'FR',    color: '#8b5cf6', dash: false },
+                ]},
+                { label: 'Flow', items: [
+                  { key: 'flowTotal', label: 'Total', color: flowTotalColor, dash: true },
+                  { key: 'flowRR',    label: 'RR',    color: '#ef4444', dash: true },
+                  { key: 'flowRL',    label: 'RL',    color: '#f97316', dash: true },
+                  { key: 'flowFL',    label: 'FL',    color: '#10b981', dash: true },
+                  { key: 'flowFR',    label: 'FR',    color: '#8b5cf6', dash: true },
+                ]},
+              ];
+              return (
+                <div className="flex gap-6 pt-1 pb-1 justify-center flex-wrap">
+                  {groups.map(g => (
+                    <div key={g.label} className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-slate-400 uppercase tracking-wide mr-1">{g.label}:</span>
+                      {g.items.map(item => (
+                        <button
+                          key={item.key}
+                          onClick={() => setHiddenSeries(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                          className={`flex items-center gap-1 text-sm transition-opacity cursor-pointer ${hiddenSeries[item.key] ? 'opacity-25' : 'opacity-100'}`}
+                        >
+                          <svg width="18" height="10" className="shrink-0">
+                            <line x1="0" y1="5" x2="18" y2="5"
+                              stroke={item.color} strokeWidth={item.label === 'Total' ? 2.5 : 1.8}
+                              strokeDasharray={item.dash ? '5 3' : 'none'} />
+                          </svg>
+                          <span style={{ color: item.color }} className="font-medium text-xs">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Toolbar */}
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 items-center">
               <div className="flex items-center gap-3 flex-wrap">
@@ -907,7 +959,7 @@ export default function App() {
               <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
                 <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal-Verläufe</span>
                 <div className="flex gap-3 ml-2">
-                  {[['#ef4444','HR'],['#f97316','HL'],['#10b981','VL'],['#8b5cf6','VR']].map(([c,l]) => (
+                  {[['#ef4444','RR'],['#f97316','RL'],['#10b981','FL'],['#8b5cf6','FR']].map(([c,l]) => (
                     <span key={l} className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span className="w-4 h-0.5 inline-block rounded-full" style={{background:c}}/>
                       {l}
@@ -958,66 +1010,13 @@ export default function App() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col h-[600px]">
-              <div className="flex items-center gap-2 text-red-600 mb-6 shrink-0">
-                <AlertTriangle size={20} />
-                <h2 className="text-lg">Auffälligkeiten</h2>
-              </div>
-              
-              <div ref={anomalyContainerRef} className="flex-1 overflow-y-auto pr-4 pb-10 space-y-2 relative">
-                {logData.anomalies.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                    <CheckCircle2 size={32} className="mb-2 opacity-50 text-green-500" />
-                    <p>Keine Auffälligkeiten gefunden</p>
-                  </div>
-                )}
-                {logData.anomalies.map((anomaly, idx) => {
-                  const lockedIndex = lockedHighlights.findIndex(h => h.type === 'anomaly' && h.idx === idx);
-                  const isLocked = lockedIndex !== -1;
-                  const highlightNum = isLocked ? lockedIndex + 1 : null;
-                  const isHovered = hoverHighlight?.type === 'anomaly' && hoverHighlight?.idx === idx;
-                  const canInteract = anomaly.time !== null;
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      ref={el => anomalyRefs.current[idx] = el}
-                      onMouseEnter={() => handleListItemMouseEnter(anomaly.time, 'anomaly', idx)}
-                      onMouseLeave={handleListItemMouseLeave}
-                      onClick={() => handleListItemClick(anomaly.time, 'anomaly', idx)}
-                      className={`relative flex gap-3 p-3 -mx-3 rounded-xl transition-all ${canInteract ? 'cursor-pointer' : ''} ${
-                        isLocked 
-                          ? 'bg-red-200 shadow-md ring-2 ring-red-400 z-10' 
-                          : isHovered
-                            ? 'bg-red-100 shadow-sm ring-1 ring-red-300 z-10'
-                            : 'bg-white border border-red-100 z-0 hover:bg-red-50'
-                      }`}
-                    >
-                      <div className="w-16 shrink-0 pt-0.5 relative">
-                        <span className={isLocked ? 'text-red-700' : 'text-red-400'}>
-                          {anomaly.time !== null ? `t=${anomaly.time}s` : ''}
-                        </span>
-                        {isLocked && (
-                          <div className="absolute top-0 right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
-                            {highlightNum}
-                          </div>
-                        )}
-                      </div>
-                      <span className={isLocked ? 'text-red-900' : 'text-red-800'}>
-                        {anomaly.desc}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          </div>{/* end left column */}
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[600px]">
-              <div className="flex items-center gap-2 text-slate-800 mb-6 shrink-0">
+          {/* Events panel — right of chart */}
+          <div className="w-80 shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[640px]">
+              <div className="flex items-center gap-2 text-slate-800 mb-4 shrink-0">
                 <Clock size={20} className="text-slate-400" />
-                <h2 className="text-lg">Prozess-Events</h2>
+                <h2 className="text-lg">Process Events</h2>
               </div>
               
               <div ref={timelineContainerRef} className="flex-1 overflow-y-auto pr-4 pb-10 space-y-2 relative">
@@ -1029,10 +1028,11 @@ export default function App() {
                   const isLocked = lockedIndex !== -1;
                   const highlightNum = isLocked ? lockedIndex + 1 : null;
                   const isHovered = hoverHighlight?.type === 'event' && hoverHighlight?.idx === idx;
-                  
+                  const isShadow = hoveredTime !== null && !isLocked && !isHovered && Math.abs(event.time - hoveredTime) <= 60;
+
                   return (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       ref={el => eventRefs.current[idx] = el}
                       onMouseEnter={() => handleListItemMouseEnter(event.time, 'event', idx)}
                       onMouseLeave={handleListItemMouseLeave}
@@ -1040,9 +1040,11 @@ export default function App() {
                       className={`relative flex gap-4 p-3 -mx-3 rounded-xl transition-all cursor-pointer ${
                         isLocked
                           ? 'bg-blue-100 shadow-md ring-2 ring-blue-500 z-10'
-                          : isHovered 
-                            ? 'bg-slate-100 shadow-sm ring-1 ring-slate-300 z-10' 
-                            : 'hover:bg-slate-50 z-0'
+                          : isHovered
+                            ? 'bg-slate-100 shadow-sm ring-1 ring-slate-300 z-10'
+                            : isShadow
+                              ? 'bg-blue-50 ring-1 ring-blue-100 z-0'
+                              : 'hover:bg-slate-50 z-0'
                       }`}
                     >
                       {idx !== logData.events.length - 1 && (
@@ -1085,7 +1087,57 @@ export default function App() {
                 })}
               </div>
             </div>
+          </div>{/* end flex wrapper (chart + events) */}
 
+          {/* Anomalies — full width below */}
+          <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col h-[400px]">
+            <div className="flex items-center gap-2 text-red-600 mb-4 shrink-0">
+              <AlertTriangle size={20} />
+              <h2 className="text-lg">Anomalies</h2>
+            </div>
+            <div ref={anomalyContainerRef} className="flex-1 overflow-y-auto pr-4 pb-6 space-y-2 relative">
+              {logData.anomalies.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <CheckCircle2 size={32} className="mb-2 opacity-50 text-green-500" />
+                  <p>No anomalies found</p>
+                </div>
+              )}
+              {logData.anomalies.map((anomaly, idx) => {
+                const lockedIndex = lockedHighlights.findIndex(h => h.type === 'anomaly' && h.idx === idx);
+                const isLocked = lockedIndex !== -1;
+                const highlightNum = isLocked ? lockedIndex + 1 : null;
+                const isHovered = hoverHighlight?.type === 'anomaly' && hoverHighlight?.idx === idx;
+                const canInteract = anomaly.time !== null;
+                return (
+                  <div
+                    key={idx}
+                    ref={el => anomalyRefs.current[idx] = el}
+                    onMouseEnter={() => handleListItemMouseEnter(anomaly.time, 'anomaly', idx)}
+                    onMouseLeave={handleListItemMouseLeave}
+                    onClick={() => handleListItemClick(anomaly.time, 'anomaly', idx)}
+                    className={`relative flex gap-3 p-3 -mx-3 rounded-xl transition-all ${canInteract ? 'cursor-pointer' : ''} ${
+                      isLocked
+                        ? 'bg-red-200 shadow-md ring-2 ring-red-400 z-10'
+                        : isHovered
+                          ? 'bg-red-100 shadow-sm ring-1 ring-red-300 z-10'
+                          : 'bg-white border border-red-100 z-0 hover:bg-red-50'
+                    }`}
+                  >
+                    <div className="w-16 shrink-0 pt-0.5 relative">
+                      <span className={isLocked ? 'text-red-700' : 'text-red-400'}>
+                        {anomaly.time !== null ? `t=${anomaly.time}s` : ''}
+                      </span>
+                      {isLocked && (
+                        <div className="absolute top-0 right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
+                          {highlightNum}
+                        </div>
+                      )}
+                    </div>
+                    <span className={isLocked ? 'text-red-900' : 'text-red-800'}>{anomaly.desc}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {logData.finalResults && logData.finalResults.hasData && (
@@ -1111,7 +1163,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                {[{key: 'RL', label: 'HL (RL)'}, {key: 'FL', label: 'VL (FL)'}, {key: 'RR', label: 'HR (RR)'}, {key: 'FR', label: 'VR (FR)'}].map(q => {
+                {[{key: 'RR', label: 'RR'}, {key: 'RL', label: 'RL'}, {key: 'FL', label: 'FL'}, {key: 'FR', label: 'FR'}].map(q => {
                   const detTime = logData.milkFlowDetectionTime[q.key];
                   const detTries = logData.milkFlowDetectionTries[q.key];
                   const detectionSlow = detTime > 90;
