@@ -761,8 +761,9 @@ export default function App() {
             
             <div className="flex-1 w-full mt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart 
-                  data={logData.chartData} 
+                <LineChart
+                  data={logData.chartData}
+                  syncId="milking"
                   margin={{ top: 20, right: 5, left: -20, bottom: 0 }}
                   onMouseMove={handleChartMouseMove}
                   onMouseLeave={handleChartMouseLeave}
@@ -793,14 +794,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  {/* Versteckte Achse fuer die digitalen 0/1 Signale, um sie sauber im unteren Bereich des Charts abzulegen */}
-                  <YAxis 
-                    yAxisId="signal" 
-                    orientation="right" 
-                    hide={true} 
-                    domain={[-1, 6]} 
-                  />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 100 }} />
                   <Legend 
                     onClick={handleLegendClick} 
                     wrapperStyle={{ cursor: 'pointer', fontSize: '14px', paddingTop: '10px' }} 
@@ -831,37 +825,10 @@ export default function App() {
                     />
                   )}
                   
-                  {/* Signale als farbige Hintergrundflächen — je Signal-Typ ein eigener Alphawert */}
-                  {activeSignals.milkflow && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
-                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
-                    return logData.signalSegments.milkflow[q].map((seg, i) => (
-                      <ReferenceArea key={`mf-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.10} stroke="none" />
-                    ));
-                  })}
-                  {activeSignals.omp && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
-                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
-                    return logData.signalSegments.omp[q].map((seg, i) => (
-                      <ReferenceArea key={`omp-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.15} stroke={colors[qi]} strokeOpacity={0.3} strokeWidth={0.5} />
-                    ));
-                  })}
-                  {activeSignals.color && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
-                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
-                    return logData.signalSegments.color[q].map((seg, i) => (
-                      <ReferenceArea key={`col-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.18} stroke="none" />
-                    ));
-                  })}
-                  {activeSignals.conduct && logData.signalSegments && ['RR','RL','FL','FR'].map((q, qi) => {
-                    const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
-                    return logData.signalSegments.conduct[q].map((seg, i) => (
-                      <ReferenceArea key={`con-${q}-${i}`} x1={seg.start} x2={seg.end} yAxisId="flow" fill={colors[qi]} fillOpacity={0.13} stroke="none" />
-                    ));
-                  })}
-
                   {/* Kickoffs als vertikale Linien (zuschaltbar) */}
                   {showKickoffsOnChart && logData.events.filter(e => e.type === 'Kickoff').map((event, i) => (
                     <ReferenceLine key={`kickoff-line-${i}`} x={event.time} yAxisId="flow" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
                   ))}
-
                   {/* Reattach als vertikale Linien (zuschaltbar) */}
                   {showReattachOnChart && logData.events.filter(e => e.type === 'Reattach').map((event, i) => (
                     <ReferenceLine key={`reattach-line-${i}`} x={event.time} yAxisId="flow" stroke="#8b5cf6" strokeWidth={2} />
@@ -890,7 +857,7 @@ export default function App() {
             {/* Toolbar */}
             <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 items-center">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Signale (Hintergrund):</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Signale einblenden:</span>
                 {[
                   { key: 'milkflow', label: 'Milkflow', hint: 'Milchfluss aktiv (HR/HL/VL/VR)' },
                   { key: 'omp',      label: 'OMP',      hint: 'Übermilkschutz aktiv' },
@@ -908,16 +875,6 @@ export default function App() {
                   </label>
                 ))}
                 {/* Mini-Legende der Viertel-Farben */}
-                {Object.values(activeSignals).some(Boolean) && (
-                  <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200 text-xs text-slate-400">
-                    {[['#ef4444','HR'],['#f97316','HL'],['#10b981','VL'],['#8b5cf6','VR']].map(([c,l]) => (
-                      <span key={l} className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: c, opacity: 0.6 }}/>
-                        {l}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4 ml-auto">
@@ -943,6 +900,63 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {/* Signal Sub-Charts — eigene Zeile je Signal-Typ, syncId verbindet mit Hauptchart */}
+          {Object.values(activeSignals).some(Boolean) && logData && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
+                <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal-Verläufe</span>
+                <div className="flex gap-3 ml-2">
+                  {[['#ef4444','HR'],['#f97316','HL'],['#10b981','VL'],['#8b5cf6','VR']].map(([c,l]) => (
+                    <span key={l} className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="w-4 h-0.5 inline-block rounded-full" style={{background:c}}/>
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {[
+                { key: 'milkflow', label: 'Milkflow', sigKeys: ['mfRR', 'mfRL', 'mfFL', 'mfFR'] },
+                { key: 'omp',      label: 'OMP',      sigKeys: ['ompRR', 'ompRL', 'ompFL', 'ompFR'] },
+                { key: 'color',    label: 'Color',    sigKeys: ['colRR', 'colRL', 'colFL', 'colFR'] },
+                { key: 'conduct',  label: 'Conduct',  sigKeys: ['conRR', 'conRL', 'conFL', 'conFR'] },
+              ].filter(s => activeSignals[s.key]).map((sig, idx, arr) => {
+                const isLast = idx === arr.length - 1;
+                const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
+                return (
+                  <div key={sig.key} className={`flex items-stretch ${!isLast ? 'border-b border-slate-100' : ''}`}>
+                    <div className="w-20 flex-shrink-0 flex items-center justify-end pr-3 bg-slate-50 border-r border-slate-100">
+                      <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{sig.label}</span>
+                    </div>
+                    <div className="flex-1" style={{ height: isLast ? '64px' : '52px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }}>
+                          <YAxis hide={true} domain={[0, 1]} />
+                          {isLast
+                            ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke="#94a3b8" fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
+                            : <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} hide={true} />
+                          }
+                          {lockedHighlights.map((hl, i) => (
+                            <ReferenceLine key={`sig-${sig.key}-locked-${i}`} x={hl.time} stroke={hl.type==='anomaly'?'#ef4444':'#3b82f6'} strokeWidth={2} />
+                          ))}
+                          {showKickoffsOnChart && logData.events.filter(e=>e.type==='Kickoff').map((event,i) => (
+                            <ReferenceLine key={`sig-kickoff-${i}`} x={event.time} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
+                          ))}
+                          {showReattachOnChart && logData.events.filter(e=>e.type==='Reattach').map((event,i) => (
+                            <ReferenceLine key={`sig-reattach-${i}`} x={event.time} stroke="#8b5cf6" strokeWidth={2} />
+                          ))}
+                          {colors.map((color, qi) => (
+                            <Line key={qi} type="stepAfter" dataKey={`signals.${sig.sigKeys[qi]}`}
+                              stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false} legendType="none" />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
