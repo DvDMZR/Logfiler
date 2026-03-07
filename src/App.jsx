@@ -800,6 +800,7 @@ export default function App() {
                     domain={[0, logData.maxAmount]}
                   />
                   <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 100 }} />
+
                   
                   {lockedHighlights.map((hl, index) => {
                     const eventType = hl.type === 'event' ? logData.events[hl.idx].type : 'Anomaly';
