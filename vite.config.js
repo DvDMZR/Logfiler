@@ -7,5 +7,5 @@ plugins: [
 react(),
 tailwindcss(),
 ],
-base: '/logfiler-app/'
+base: '/Logfiler/'
 })
