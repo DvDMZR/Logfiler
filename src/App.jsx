@@ -123,6 +123,7 @@ export default function App() {
         qtrAmount: { RR: '0', RL: '0', FL: '0', FR: '0' },
         milkTime: { RR: '0', RL: '0', FL: '0', FR: '0' },
         milkTimeMF: { RR: '0', RL: '0', FL: '0', FR: '0' },
+        nrOfKickoffs: { RR: 0, RL: 0, FL: 0, FR: 0 },
         messages: []
       }
     };
@@ -250,6 +251,9 @@ export default function App() {
       const mfdtrMatch = line.match(/MilkFlowDetectionTries\[(RR1|RL2|FL3|FR4)\]:\s*(\d+)/);
       if (mfdtrMatch) parsedData.milkFlowDetectionTries[qtrKeyMap[mfdtrMatch[1]]] = parseInt(mfdtrMatch[2], 10);
 
+      const kickoffMatch = line.match(/NrOfKickoffs\[(RR1|RL2|FL3|FR4)\]:\s*(\d+)/);
+      if (kickoffMatch) parsedData.finalResults.nrOfKickoffs[qtrKeyMap[kickoffMatch[1]]] = parseInt(kickoffMatch[2], 10);
+
       const milkDurMatch = line.match(/MilkingDuration:\s*(\d+)/);
       if (milkDurMatch) parsedData.milkingDuration = parseInt(milkDurMatch[1], 10);
 
@@ -314,7 +318,12 @@ export default function App() {
       }
 
       if (line.includes('Abort attach or Kickoff')) {
-        events.push({ time: t, type: 'Kickoff', desc: line.split('DEBUG ')[1] || 'Kickoff detected' });
+        const desc = line.split('DEBUG ')[1] || 'Kickoff detected';
+        events.push({ time: t, type: 'Kickoff', desc });
+        const teatMatch = line.match(/teat\s+(\d)/i);
+        const teatMap = { '1': 'RR', '2': 'RL', '3': 'FL', '4': 'FR' };
+        const qtr = teatMatch ? ` (${teatMap[teatMatch[1]] ?? `Teat ${teatMatch[1]}`})` : '';
+        parsedData.anomalies.push({ time: t, desc: `Abort / Kickoff on teat${qtr}` });
       }
       if (line.includes('Milkflow detected') && !line.includes('Analyze milk')) {
         events.push({ time: t, type: 'Milkflow', desc: line.split('DEBUG ')[1] || 'Milk flow detected' });
@@ -680,7 +689,7 @@ export default function App() {
           <div className="relative">
             <input
               type="file"
-              accept=".txt"
+              accept=".txt,.current"
               onChange={handleFileUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
@@ -1250,6 +1259,12 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                      <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
+                        <div className="text-xs text-slate-400">Kickoffs</div>
+                        <div className={`text-sm font-medium ${logData.finalResults.nrOfKickoffs[q.key] > 0 ? 'text-orange-500' : 'text-slate-700'}`}>
+                          {logData.finalResults.nrOfKickoffs[q.key]}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )})}
