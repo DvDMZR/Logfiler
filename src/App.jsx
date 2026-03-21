@@ -72,11 +72,17 @@ export default function App() {
   const [hoverHighlight, setHoverHighlight] = useState(null);
   const [hoveredTime, setHoveredTime] = useState(null);
   
+  const [expertMode, setExpertMode] = useState(false);
+  const [lockedLogLines, setLockedLogLines] = useState([]);
+
   const eventRefs = useRef({});
   const timelineContainerRef = useRef(null);
-  
+
   const anomalyRefs = useRef({});
   const anomalyContainerRef = useRef(null);
+
+  const logLineContainerRef = useRef(null);
+  const logLineRefs = useRef({});
 
   const parseLogFile = useCallback((text) => {
     const lines = text.split('\n');
@@ -130,6 +136,7 @@ export default function App() {
 
     const qtrKeyMap = { RR1: 'RR', RL2: 'RL', FL3: 'FL', FR4: 'FR' };
     let lastReattachEventTime = -9999;
+    const rawLines = [];
 
     for (let line of lines) {
       if (line.includes('MLK_AMS_AUTOMATIC_ATTACHMENT')) {
@@ -159,6 +166,7 @@ export default function App() {
         if (t < minT) minT = t;
         if (t > maxT) maxT = t;
       }
+      rawLines.push({ text: line, time: tMatch && startTime ? t : null });
 
       if (line.includes('MLK_Parameter')) inParameterBlock = true;
       if (inParameterBlock) {
@@ -471,11 +479,13 @@ export default function App() {
       chartData: finalChartData,
       signalSegments,
       parameters,
+      rawLines,
       maxAmount: calcMaxAmount,
       maxFlow: calcMaxFlow
     });
 
     setLockedHighlights([]);
+    setLockedLogLines([]);
     setHoverHighlight(null);
   }, []);
 
@@ -512,7 +522,7 @@ export default function App() {
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
-      
+
       logData.events.forEach((event, idx) => {
         const diff = Math.abs(event.time - e.activeLabel);
         if (diff < minDiff && diff <= threshold) {
@@ -534,11 +544,28 @@ export default function App() {
       if (closestItem) {
         if (!hoverHighlight || hoverHighlight.type !== closestItem.type || hoverHighlight.idx !== closestItem.idx) {
           setHoverHighlight(closestItem);
-          scrollToItem(closestItem.type, closestItem.idx);
+          if (!expertMode) scrollToItem(closestItem.type, closestItem.idx);
         }
       } else {
         if (hoverHighlight) {
           setHoverHighlight(null);
+        }
+      }
+
+      if (expertMode && logData.rawLines) {
+        let closestLineIdx = null;
+        let closestDiff = Infinity;
+        logData.rawLines.forEach(({ time }, i) => {
+          if (time !== null) {
+            const diff = Math.abs(time - e.activeLabel);
+            if (diff < closestDiff) {
+              closestDiff = diff;
+              closestLineIdx = i;
+            }
+          }
+        });
+        if (closestLineIdx !== null && logLineRefs.current[closestLineIdx]) {
+          logLineRefs.current[closestLineIdx].scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
       }
     }
@@ -568,6 +595,14 @@ export default function App() {
       } else {
         return [...prev, { time, type, idx }];
       }
+    });
+  };
+
+  const handleLogLineClick = (lineIdx, time) => {
+    setLockedLogLines(prev => {
+      const exists = prev.findIndex(l => l.lineIdx === lineIdx);
+      if (exists !== -1) return prev.filter((_, i) => i !== exists);
+      return [...prev, { lineIdx, time }];
     });
   };
 
@@ -642,12 +677,14 @@ export default function App() {
   const CustomReferenceLabel = ({ viewBox, type, eventType, indexNum, opacity = 1 }) => {
     const { x } = viewBox;
     const isAnomaly = type === 'anomaly';
-    const color = isAnomaly ? '#ef4444' : '#3b82f6';
-    const bg = isAnomaly ? '#fee2e2' : '#dbeafe';
-    const border = isAnomaly ? '#fca5a5' : '#bfdbfe';
+    const isLogLine = type === 'logline';
+    const color = isAnomaly ? '#ef4444' : isLogLine ? '#16a34a' : '#3b82f6';
+    const bg = isAnomaly ? '#fee2e2' : isLogLine ? '#dcfce7' : '#dbeafe';
+    const border = isAnomaly ? '#fca5a5' : isLogLine ? '#86efac' : '#bfdbfe';
 
     let IconToUse = Info;
     if (isAnomaly) IconToUse = AlertTriangle;
+    else if (isLogLine) IconToUse = FileText;
     else if (eventType === 'Kickoff') IconToUse = AlertTriangle;
     else if (eventType === 'Milkflow') IconToUse = Droplets;
     else if (eventType === 'Detach') IconToUse = Activity;
@@ -842,7 +879,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} />
+                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} offset={30} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -880,6 +917,19 @@ export default function App() {
                     />
                   )}
                   
+                  {/* Log line stamps — from expert mode */}
+                  {lockedLogLines.map((ll, index) => (
+                    <ReferenceLine
+                      key={`logline-${ll.lineIdx}`}
+                      x={ll.time}
+                      yAxisId="flow"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                      strokeDasharray="4 2"
+                      label={<CustomReferenceLabel type="logline" eventType="Log" indexNum={index + 1} />}
+                    />
+                  ))}
+
                   {/* Kickoffs als vertikale Linien (zuschaltbar) */}
                   {showKickoffsOnChart && logData.events.filter(e => e.type === 'Kickoff').map((event, i) => (
                     <ReferenceLine key={`kickoff-line-${i}`} x={event.time} yAxisId="flow" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
@@ -1052,6 +1102,9 @@ export default function App() {
                           {lockedHighlights.map((hl, i) => (
                             <ReferenceLine key={`sig-${sig.key}-locked-${i}`} x={hl.time} stroke={hl.type==='anomaly'?'#ef4444':'#3b82f6'} strokeWidth={2} />
                           ))}
+                          {lockedLogLines.map((ll, i) => (
+                            <ReferenceLine key={`sig-${sig.key}-logline-${i}`} x={ll.time} stroke="#16a34a" strokeWidth={2} strokeDasharray="4 2" />
+                          ))}
                           {showKickoffsOnChart && logData.events.filter(e=>e.type==='Kickoff').map((event,i) => (
                             <ReferenceLine key={`sig-kickoff-${i}`} x={event.time} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3" />
                           ))}
@@ -1075,78 +1128,134 @@ export default function App() {
 
           {/* Events panel — right of chart */}
           <div className="w-80 shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[640px]">
-              <div className="flex items-center gap-2 text-slate-800 mb-4 shrink-0">
-                <Clock size={20} className="text-slate-400" />
-                <h2 className="text-lg">Process Events</h2>
-              </div>
-              
-              <div ref={timelineContainerRef} className="flex-1 overflow-y-auto pr-4 pb-10 space-y-2 relative">
-                {logData.events.length === 0 && (
-                  <p className="text-slate-400 text-center mt-10">No events found</p>
-                )}
-                {logData.events.map((event, idx) => {
-                  const lockedIndex = lockedHighlights.findIndex(h => h.type === 'event' && h.idx === idx);
-                  const isLocked = lockedIndex !== -1;
-                  const highlightNum = isLocked ? lockedIndex + 1 : null;
-                  const isHovered = hoverHighlight?.type === 'event' && hoverHighlight?.idx === idx;
-                  const isShadow = hoveredTime !== null && !isLocked && !isHovered && Math.abs(event.time - hoveredTime) <= 60;
-
-                  return (
-                    <div
-                      key={idx}
-                      ref={el => eventRefs.current[idx] = el}
-                      onMouseEnter={() => handleListItemMouseEnter(event.time, 'event', idx)}
-                      onMouseLeave={handleListItemMouseLeave}
-                      onClick={() => handleListItemClick(event.time, 'event', idx)}
-                      className={`relative flex gap-4 p-3 -mx-3 rounded-xl transition-all cursor-pointer ${
-                        isLocked
-                          ? 'bg-blue-100 shadow-md ring-2 ring-blue-500 z-10'
-                          : isHovered
-                            ? 'bg-slate-100 shadow-sm ring-1 ring-slate-300 z-10'
-                            : isShadow
-                              ? 'bg-blue-50 ring-1 ring-blue-100 z-0'
-                              : 'hover:bg-slate-50 z-0'
-                      }`}
+              <div className="shrink-0 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-800">
+                    <Clock size={20} className="text-slate-400" />
+                    <h2 className="text-lg">Process Events</h2>
+                  </div>
+                  <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+                    <button
+                      onClick={() => setExpertMode(false)}
+                      className={`px-3 py-1 transition-colors ${!expertMode ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                     >
-                      {idx !== logData.events.length - 1 && (
-                        <div className="absolute left-7 top-12 bottom-[-16px] w-px bg-slate-200"></div>
-                      )}
-                      
-                      <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 border-white
-                        ${event.type === 'Kickoff' ? (isHovered || isLocked ? 'bg-orange-200 text-orange-600' : 'bg-orange-100 text-orange-500') : ''}
-                        ${event.type === 'OMP' ? (isHovered || isLocked ? 'bg-red-200 text-red-600' : 'bg-red-100 text-red-500') : ''}
-                        ${event.type === 'Milkflow' ? (isHovered || isLocked ? 'bg-blue-200 text-blue-600' : 'bg-blue-100 text-blue-500') : ''}
-                        ${event.type === 'Detach' ? (isHovered || isLocked ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500') : ''}
-                        ${event.type === 'Reattach' ? (isHovered || isLocked ? 'bg-purple-200 text-purple-700' : 'bg-purple-100 text-purple-500') : ''}
-                        ${!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
-                      `}>
-                        {event.type === 'Kickoff' && <AlertTriangle size={14} />}
-                        {event.type === 'OMP' && <AlertTriangle size={14} />}
-                        {event.type === 'Milkflow' && <Droplets size={14} />}
-                        {event.type === 'Detach' && <Activity size={14} />}
-                        {event.type === 'Reattach' && <RefreshCw size={14} />}
-                        {!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) && <Info size={14} />}
-                        
-                        {isLocked && (
-                          <div className="absolute -top-1 -right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
-                            {highlightNum}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="pt-1.5 pb-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className={`text-sm ${isLocked ? 'text-slate-900' : 'text-slate-800'}`}>{event.type}</span>
-                          <span className="text-xs text-slate-400 uppercase tracking-widest">t={event.time}s</span>
-                        </div>
-                        <p className={`text-sm mt-1 leading-relaxed ${isLocked ? 'text-slate-700' : 'text-slate-500'}`}>
-                          {event.desc}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                      Einfach
+                    </button>
+                    <button
+                      onClick={() => setExpertMode(true)}
+                      className={`px-3 py-1 transition-colors ${expertMode ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                    >
+                      Experten
+                    </button>
+                  </div>
+                </div>
+                {expertMode && (
+                  <p className="text-xs text-slate-400 mt-2">Vollständiges Logfile · Klicken zum Markieren</p>
+                )}
               </div>
+
+              {/* Simple mode — event timeline */}
+              {!expertMode && (
+                <div ref={timelineContainerRef} className="flex-1 overflow-y-auto pr-4 pb-10 space-y-2 relative">
+                  {logData.events.length === 0 && (
+                    <p className="text-slate-400 text-center mt-10">No events found</p>
+                  )}
+                  {logData.events.map((event, idx) => {
+                    const lockedIndex = lockedHighlights.findIndex(h => h.type === 'event' && h.idx === idx);
+                    const isLocked = lockedIndex !== -1;
+                    const highlightNum = isLocked ? lockedIndex + 1 : null;
+                    const isHovered = hoverHighlight?.type === 'event' && hoverHighlight?.idx === idx;
+                    const isShadow = hoveredTime !== null && !isLocked && !isHovered && Math.abs(event.time - hoveredTime) <= 60;
+
+                    return (
+                      <div
+                        key={idx}
+                        ref={el => eventRefs.current[idx] = el}
+                        onMouseEnter={() => handleListItemMouseEnter(event.time, 'event', idx)}
+                        onMouseLeave={handleListItemMouseLeave}
+                        onClick={() => handleListItemClick(event.time, 'event', idx)}
+                        className={`relative flex gap-4 p-3 -mx-3 rounded-xl transition-all cursor-pointer ${
+                          isLocked
+                            ? 'bg-blue-100 shadow-md ring-2 ring-blue-500 z-10'
+                            : isHovered
+                              ? 'bg-slate-100 shadow-sm ring-1 ring-slate-300 z-10'
+                              : isShadow
+                                ? 'bg-blue-50 ring-1 ring-blue-100 z-0'
+                                : 'hover:bg-slate-50 z-0'
+                        }`}
+                      >
+                        {idx !== logData.events.length - 1 && (
+                          <div className="absolute left-7 top-12 bottom-[-16px] w-px bg-slate-200"></div>
+                        )}
+
+                        <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 border-white
+                          ${event.type === 'Kickoff' ? (isHovered || isLocked ? 'bg-orange-200 text-orange-600' : 'bg-orange-100 text-orange-500') : ''}
+                          ${event.type === 'OMP' ? (isHovered || isLocked ? 'bg-red-200 text-red-600' : 'bg-red-100 text-red-500') : ''}
+                          ${event.type === 'Milkflow' ? (isHovered || isLocked ? 'bg-blue-200 text-blue-600' : 'bg-blue-100 text-blue-500') : ''}
+                          ${event.type === 'Detach' ? (isHovered || isLocked ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500') : ''}
+                          ${event.type === 'Reattach' ? (isHovered || isLocked ? 'bg-purple-200 text-purple-700' : 'bg-purple-100 text-purple-500') : ''}
+                          ${!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) ? (isHovered || isLocked ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-400') : ''}
+                        `}>
+                          {event.type === 'Kickoff' && <AlertTriangle size={14} />}
+                          {event.type === 'OMP' && <AlertTriangle size={14} />}
+                          {event.type === 'Milkflow' && <Droplets size={14} />}
+                          {event.type === 'Detach' && <Activity size={14} />}
+                          {event.type === 'Reattach' && <RefreshCw size={14} />}
+                          {!['Kickoff', 'OMP', 'Milkflow', 'Detach', 'Reattach'].includes(event.type) && <Info size={14} />}
+
+                          {isLocked && (
+                            <div className="absolute -top-1 -right-1 rounded-full flex items-center justify-center text-white bg-slate-700" style={{ width: '16px', height: '16px', fontSize: '10px' }}>
+                              {highlightNum}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-1.5 pb-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className={`text-sm ${isLocked ? 'text-slate-900' : 'text-slate-800'}`}>{event.type}</span>
+                            <span className="text-xs text-slate-400 uppercase tracking-widest">t={event.time}s</span>
+                          </div>
+                          <p className={`text-sm mt-1 leading-relaxed ${isLocked ? 'text-slate-700' : 'text-slate-500'}`}>
+                            {event.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Expert mode — raw log lines */}
+              {expertMode && (
+                <div ref={logLineContainerRef} className="flex-1 overflow-y-auto relative">
+                  {logData.rawLines.map(({ text, time }, idx) => {
+                    const isLocked = lockedLogLines.some(l => l.lineIdx === idx);
+                    const isNearCursor = time !== null && hoveredTime !== null && Math.abs(time - hoveredTime) < 2;
+                    return (
+                      <div
+                        key={idx}
+                        ref={el => logLineRefs.current[idx] = el}
+                        onClick={() => time !== null && handleLogLineClick(idx, time)}
+                        title={time !== null ? `t=${time}s — klicken zum Markieren` : undefined}
+                        className={`flex gap-1 px-2 py-0.5 font-mono text-xs leading-5 select-text ${
+                          time !== null ? 'cursor-pointer' : ''
+                        } ${
+                          isLocked
+                            ? 'bg-green-100 border-l-2 border-green-500'
+                            : isNearCursor
+                              ? 'bg-blue-50 border-l-2 border-blue-300'
+                              : time !== null
+                                ? 'hover:bg-slate-50'
+                                : ''
+                        }`}
+                      >
+                        <span className="text-slate-300 shrink-0 w-8 text-right select-none">{idx + 1}</span>
+                        <span className={`break-all ${isLocked ? 'text-green-900' : isNearCursor ? 'text-blue-800' : 'text-slate-600'}`}>{text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>{/* end flex wrapper (chart + events) */}
 
