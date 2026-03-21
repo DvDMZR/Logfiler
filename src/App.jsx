@@ -565,7 +565,7 @@ export default function App() {
           }
         });
         if (closestLineIdx !== null && logLineRefs.current[closestLineIdx]) {
-          logLineRefs.current[closestLineIdx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+          logLineRefs.current[closestLineIdx].scrollIntoView({ block: 'center', behavior: 'auto' });
         }
       }
     }
@@ -587,22 +587,19 @@ export default function App() {
 
   const handleListItemClick = (time, type, idx) => {
     if (time === null) return;
-    
+
     setLockedHighlights(prev => {
       const exists = prev.find(item => item.type === type && item.idx === idx);
-      if (exists) {
-        return prev.filter(item => !(item.type === type && item.idx === idx));
-      } else {
-        return [...prev, { time, type, idx }];
-      }
+      if (exists) return [];
+      return [{ time, type, idx }];
     });
   };
 
   const handleLogLineClick = (lineIdx, time) => {
     setLockedLogLines(prev => {
       const exists = prev.findIndex(l => l.lineIdx === lineIdx);
-      if (exists !== -1) return prev.filter((_, i) => i !== exists);
-      return [...prev, { lineIdx, time }];
+      if (exists !== -1) return [];
+      return [{ lineIdx, time }];
     });
   };
 
@@ -1127,7 +1124,7 @@ export default function App() {
           </div>{/* end left column */}
 
           {/* Events panel — right of chart */}
-          <div className="w-80 shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[640px]">
+          <div className={`${expertMode ? 'w-[480px]' : 'w-80'} shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[640px] transition-all duration-200`}>
               <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-800">
@@ -1243,14 +1240,14 @@ export default function App() {
                           isLocked
                             ? 'bg-green-100 border-l-2 border-green-500'
                             : isNearCursor
-                              ? 'bg-blue-50 border-l-2 border-blue-300'
+                              ? 'bg-blue-100 border-l-2 border-blue-400'
                               : time !== null
-                                ? 'hover:bg-slate-50'
+                                ? 'hover:bg-slate-100'
                                 : ''
                         }`}
                       >
-                        <span className="text-slate-300 shrink-0 w-8 text-right select-none">{idx + 1}</span>
-                        <span className={`break-all ${isLocked ? 'text-green-900' : isNearCursor ? 'text-blue-800' : 'text-slate-600'}`}>{text}</span>
+                        <span className="text-slate-500 shrink-0 w-8 text-right select-none">{idx + 1}</span>
+                        <span className={`break-all ${isLocked ? 'text-green-900' : isNearCursor ? 'text-blue-900' : 'text-slate-800'}`}>{text}</span>
                       </div>
                     );
                   })}
