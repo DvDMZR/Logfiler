@@ -726,9 +726,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
-      
-      <div className="max-w-screen-2xl mx-auto mb-8">
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
+
+      <div className="max-w-screen-2xl mx-auto w-full mb-3 shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <div className="flex items-baseline gap-2">
@@ -773,8 +773,9 @@ export default function App() {
       )}
 
       {logData && (
-        <div className="max-w-screen-2xl mx-auto space-y-6">
-          
+        <div className="max-w-screen-2xl mx-auto w-full flex-1 flex flex-col overflow-hidden gap-3 min-h-0">
+
+          <div className="shrink-0 space-y-3">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
@@ -849,9 +850,10 @@ export default function App() {
               })}
             </div>
           </div>
+          </div>{/* end shrink-0 stats wrapper */}
 
-          <div className="space-y-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-[580px] flex flex-col relative">
+          <div className="flex-[4] flex flex-col gap-3 overflow-hidden min-h-0">
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg text-slate-800">Milkflow & Amount Over Time</h2>
               <span className="text-xs text-slate-400 uppercase tracking-wider">T=0 is attachment</span>
@@ -893,7 +895,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} offset={30} />
+                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} position={{ x: 20, y: 10 }} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -1138,10 +1140,10 @@ export default function App() {
             </div>
           )}
 
-          </div>{/* end left column */}
+          </div>{/* end chart section */}
 
-          {/* Events panel — right of chart */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[600px]">
+          {/* Expert Log panel */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col flex-[5] overflow-hidden min-h-0">
               <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-800">
@@ -1271,8 +1273,9 @@ export default function App() {
                 </div>
               )}
             </div>
-          {/* Anomalies — full width below */}
-          <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col h-[400px]">
+          <div className="shrink-0 overflow-y-auto max-h-[28vh] space-y-4 pb-2">
+          {/* Anomalies */}
+          <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col max-h-52">
             <div className="flex items-center gap-2 text-red-600 mb-4 shrink-0">
               <AlertTriangle size={20} />
               <h2 className="text-lg">Anomalies</h2>
@@ -1431,7 +1434,8 @@ export default function App() {
               </div>
             )}
           </div>
-          
+          </div>{/* end scroll wrapper */}
+
         </div>
       )}
     </div>
