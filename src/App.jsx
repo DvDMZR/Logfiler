@@ -39,6 +39,19 @@ import {
 
 const APP_VERSION = '1.02';
 
+// Captures Recharts Tooltip data (already filtered: hidden series excluded) → side panel state
+function PanelCapture({ active, payload, label, onCapture }) {
+  const prevRef = useRef({ active: false, label: undefined });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev.active !== active || prev.label !== label) {
+      prevRef.current = { active, label };
+      onCapture(active && payload?.length ? { payload, label } : null);
+    }
+  });
+  return null;
+}
+
 export default function App() {
   const [logData, setLogData] = useState(null);
   const [fileName, setFileName] = useState('');
@@ -911,7 +924,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={() => null} />
+                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
 
                   
                   {lockedHighlights.map((hl, index) => {
