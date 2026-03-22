@@ -621,14 +621,6 @@ export default function App() {
     });
   };
 
-  const handleLogLineClick = (lineIdx, time) => {
-    setLockedLogLines(prev => {
-      const exists = prev.findIndex(l => l.lineIdx === lineIdx);
-      if (exists !== -1) return prev.filter((_, i) => i !== exists);
-      return [...prev, { lineIdx, time }];
-    });
-  };
-
   const CustomTooltip = ({ active, payload, label, showAms, showQtr }) => {
     if (active && payload && payload.length) {
       const visiblePayload = payload.filter(entry => entry.color !== 'transparent' && !entry.name.includes('signals.') && !entry.name.startsWith('signals'));
