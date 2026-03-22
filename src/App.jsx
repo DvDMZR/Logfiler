@@ -37,8 +37,21 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.03';
+const APP_VERSION = '1.04';
 
+// Captures Recharts Tooltip payload → side panel state
+// (e.activePayload in onMouseMove ist in Recharts v3 nicht zuverlässig befüllt)
+function PanelCapture({ active, payload, label, onCapture }) {
+  const prevRef = useRef({ active: false, label: undefined });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev.active !== active || prev.label !== label) {
+      prevRef.current = { active, label };
+      onCapture(active && payload?.length ? { payload, label } : null);
+    }
+  });
+  return null;
+}
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -90,6 +103,10 @@ export default function App() {
   const logLineRefs = useRef({});
   const lastActiveLabelRef = useRef(undefined);
 
+  const handlePanelCapture = useCallback((data) => {
+    setHoveredPayload(data?.payload ?? null);
+    setHoveredTime(data?.label ?? null);
+  }, []);
 
   const parseLogFile = useCallback((text) => {
     const lines = text.split('\n');
@@ -527,8 +544,6 @@ export default function App() {
     if (e && e.activeLabel !== undefined && logData) {
       if (e.activeLabel !== lastActiveLabelRef.current) {
         lastActiveLabelRef.current = e.activeLabel;
-        setHoveredTime(e.activeLabel);
-        setHoveredPayload(e.activePayload || null);
       }
       let closestItem = null;
       let minDiff = Infinity;
@@ -918,7 +933,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={() => null} />
+                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
 
                   
                   {lockedHighlights.map((hl, index) => {
