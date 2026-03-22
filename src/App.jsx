@@ -571,6 +571,24 @@ export default function App() {
     }
   };
 
+  const handleChartClick = (data) => {
+    if (!data || data.activeLabel == null) return;
+    const clickedTime = data.activeLabel;
+    let closestLineIdx = null;
+    let closestDist = Infinity;
+    logData.rawLines.forEach(({ time }, idx) => {
+      if (time === null) return;
+      const dist = Math.abs(time - clickedTime);
+      if (dist < closestDist) { closestDist = dist; closestLineIdx = idx; }
+    });
+    if (closestLineIdx === null) return;
+    const { time } = logData.rawLines[closestLineIdx];
+    setLockedLogLines([{ lineIdx: closestLineIdx, time }]);
+    if (logLineRefs.current[closestLineIdx]) {
+      logLineRefs.current[closestLineIdx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  };
+
   const handleChartMouseLeave = () => {
     setHoverHighlight(null);
     setHoveredTime(null);
@@ -597,17 +615,9 @@ export default function App() {
 
   const handleLogLineClick = (lineIdx, time) => {
     setLockedLogLines(prev => {
-      const exists = prev.findIndex(l => l.lineIdx === lineIdx);
-      if (exists !== -1) return [];
+      const alreadyMarked = prev.length === 1 && prev[0].lineIdx === lineIdx;
+      if (alreadyMarked) return [];
       return [{ lineIdx, time }];
-    });
-  };
-
-  const handleLogLineClick = (lineIdx, time) => {
-    setLockedLogLines(prev => {
-      const exists = prev.findIndex(l => l.lineIdx === lineIdx);
-      if (exists !== -1) return prev.filter((_, i) => i !== exists);
-      return [...prev, { lineIdx, time }];
     });
   };
 
@@ -841,8 +851,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex gap-6 items-start">
-          <div className="flex-1 min-w-0 space-y-4">
+          <div className="space-y-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-[580px] flex flex-col relative">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg text-slate-800">Milkflow & Amount Over Time</h2>
@@ -857,6 +866,7 @@ export default function App() {
                   margin={{ top: 20, right: 5, left: -20, bottom: 0 }}
                   onMouseMove={handleChartMouseMove}
                   onMouseLeave={handleChartMouseLeave}
+                  onClick={handleChartClick}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis 
@@ -1098,7 +1108,7 @@ export default function App() {
                     </div>
                     <div className="flex-1" style={{ height: isLast ? '64px' : '52px' }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }}>
+                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }} onClick={handleChartClick}>
                           <YAxis hide={true} domain={[0, 1]} />
                           {isLast
                             ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke="#94a3b8" fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
@@ -1132,7 +1142,7 @@ export default function App() {
           </div>{/* end left column */}
 
           {/* Events panel — right of chart */}
-          <div className={`${expertMode ? 'w-[480px]' : 'w-80'} shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[640px] transition-all duration-200`}>
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[600px]">
               <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-800">
@@ -1246,23 +1256,23 @@ export default function App() {
                           time !== null ? 'cursor-pointer' : ''
                         } ${
                           isLocked
-                            ? 'bg-green-100 border-l-2 border-green-500'
+                            ? 'bg-amber-100 border-l-4 border-amber-500'
                             : isNearCursor
-                              ? 'bg-blue-100 border-l-2 border-blue-400'
+                              ? 'bg-blue-200 border-l-4 border-blue-600'
                               : time !== null
-                                ? 'hover:bg-slate-100'
+                                ? 'hover:bg-slate-200'
                                 : ''
                         }`}
                       >
-                        <span className="text-slate-500 shrink-0 w-8 text-right select-none">{idx + 1}</span>
-                        <span className={`break-all ${isLocked ? 'text-green-900' : isNearCursor ? 'text-blue-900' : 'text-slate-800'}`}>{text}</span>
+                        <span className="text-slate-600 shrink-0 w-8 text-right select-none font-medium">{idx + 1}</span>
+                        <span className={`break-all ${isLocked ? 'text-amber-900 font-medium' : isNearCursor ? 'text-blue-950 font-medium' : 'text-slate-900'}`}>{text}</span>
                       </div>
                     );
                   })}
                 </div>
               )}
             </div>
-          </div>{/* end flex wrapper (chart + events) */}
+          </div>{/* end chart section */}
 
           {/* Anomalies — full width below */}
           <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col h-[400px]">
