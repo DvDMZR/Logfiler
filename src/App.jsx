@@ -37,7 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.06';
+const APP_VERSION = '1.08';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -995,9 +995,18 @@ export default function App() {
             {/* Side info panel */}
             {(() => {
               const payload = hoveredPayload;
-              const visiblePayload = payload
-                ? payload.filter(e => e.color && e.color !== 'transparent' && e.name && !e.name.includes('signals.') && !e.name.startsWith('signals'))
-                : [];
+              const WERTE = dataPoint ? [
+                { key: 'amountTotal', name: 'Amount Total', color: '#64748b', unit: 'g' },
+                { key: 'amountRR',    name: 'Amount RR',    color: '#ef4444', unit: 'g' },
+                { key: 'amountRL',    name: 'Amount RL',    color: '#f97316', unit: 'g' },
+                { key: 'amountFL',    name: 'Amount FL',    color: '#10b981', unit: 'g' },
+                { key: 'amountFR',    name: 'Amount FR',    color: '#8b5cf6', unit: 'g' },
+                { key: 'flowTotal',   name: 'Flow Total',   color: '#3b82f6', unit: 'g/min' },
+                { key: 'flowRR',      name: 'Flow RR',      color: '#ef4444', unit: 'g/min' },
+                { key: 'flowRL',      name: 'Flow RL',      color: '#f97316', unit: 'g/min' },
+                { key: 'flowFL',      name: 'Flow FL',      color: '#10b981', unit: 'g/min' },
+                { key: 'flowFR',      name: 'Flow FR',      color: '#8b5cf6', unit: 'g/min' },
+              ].filter(s => !hiddenSeries[s.key]) : [];
               const dataPoint = payload?.[0]?.payload;
               const tooltipStates = dataPoint?.qtrStates;
               const amsState = dataPoint?.amsState;
@@ -1019,24 +1028,21 @@ export default function App() {
                         )}
                       </div>
 
-                      {visiblePayload.length > 0 && (
+                      {WERTE.length > 0 && (
                         <div className="mb-3">
                           <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Werte</p>
                           <div className="space-y-1.5">
-                            {visiblePayload.map((entry, i) => {
-                              const isFlow = entry.name?.includes('Flow');
-                              return (
-                                <div key={i} className="flex items-center justify-between gap-2">
-                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-xs min-w-0">
-                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
-                                    <span className="truncate">{entry.name}</span>
-                                  </span>
-                                  <span className="text-slate-800 dark:text-slate-100 text-xs font-mono whitespace-nowrap">
-                                    {entry.value} {isFlow ? 'g/min' : 'g'}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                            {WERTE.map((s, i) => (
+                              <div key={i} className="flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-xs min-w-0">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                                  <span className="truncate">{s.name}</span>
+                                </span>
+                                <span className="text-slate-800 dark:text-slate-100 text-xs font-mono whitespace-nowrap">
+                                  {dataPoint[s.key]} {s.unit}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -1184,7 +1190,8 @@ export default function App() {
 
           {/* Signal Sub-Charts — eigene Zeile je Signal-Typ, syncId verbindet mit Hauptchart */}
           {Object.values(activeSignals).some(Boolean) && logData && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="flex gap-4">
+            <div className="flex-1 min-w-0 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                 <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal Traces</span>
                 <div className="flex gap-3 ml-2">
@@ -1211,7 +1218,7 @@ export default function App() {
                     </div>
                     <div className="flex-1" style={{ height: isLast ? '64px' : '52px' }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }} onClick={handleChartClick}>
+                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 5, left: -20, bottom: 0 }} onClick={handleChartClick}>
                           <YAxis hide={true} domain={[0, 1]} />
                           {isLast
                             ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke={isDarkMode ? "#64748b" : "#94a3b8"} fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
@@ -1239,6 +1246,8 @@ export default function App() {
                   </div>
                 );
               })}
+            </div>
+            <div className="w-96 shrink-0" />
             </div>
           )}
 
