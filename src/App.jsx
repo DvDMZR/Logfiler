@@ -100,6 +100,7 @@ export default function App() {
 
   const logLineContainerRef = useRef(null);
   const logLineRefs = useRef({});
+  const lastActiveLabelRef = useRef(undefined);
 
 
   const parseLogFile = useCallback((text) => {
@@ -536,8 +537,11 @@ export default function App() {
 
   const handleChartMouseMove = (e) => {
     if (e && e.activeLabel !== undefined && logData) {
-      setHoveredTime(e.activeLabel);
-      setHoveredPayload(e.activePayload || null);
+      if (e.activeLabel !== lastActiveLabelRef.current) {
+        lastActiveLabelRef.current = e.activeLabel;
+        setHoveredTime(e.activeLabel);
+        setHoveredPayload(e.activePayload || null);
+      }
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
@@ -608,8 +612,10 @@ export default function App() {
   };
 
   const handleChartMouseLeave = () => {
+    lastActiveLabelRef.current = undefined;
     setHoverHighlight(null);
     setHoveredTime(null);
+    setHoveredPayload(null);
   };
 
   const handleListItemMouseEnter = (time, type, idx) => {
