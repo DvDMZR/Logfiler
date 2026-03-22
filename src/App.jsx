@@ -37,7 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.04';
+const APP_VERSION = '1.05';
 
 // Captures Recharts Tooltip payload → side panel state
 // (e.activePayload in onMouseMove ist in Recharts v3 nicht zuverlässig befüllt)
@@ -933,7 +933,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={() => null} />
+                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
 
                   
                   {lockedHighlights.map((hl, index) => {
