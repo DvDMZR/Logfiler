@@ -35,7 +35,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '0.5.1';
+const APP_VERSION = '1.0';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -1272,8 +1272,6 @@ export default function App() {
                 </div>
               )}
             </div>
-          </div>{/* end chart section */}
-
           {/* Anomalies — full width below */}
           <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col h-[400px]">
             <div className="flex items-center gap-2 text-red-600 mb-4 shrink-0">
