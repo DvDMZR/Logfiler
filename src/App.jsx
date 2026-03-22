@@ -37,20 +37,8 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.02';
+const APP_VERSION = '1.03';
 
-// Captures Recharts Tooltip data (already filtered: hidden series excluded) → side panel state
-function PanelCapture({ active, payload, label, onCapture }) {
-  const prevRef = useRef({ active: false, label: undefined });
-  useEffect(() => {
-    const prev = prevRef.current;
-    if (prev.active !== active || prev.label !== label) {
-      prevRef.current = { active, label };
-      onCapture(active && payload?.length ? { payload, label } : null);
-    }
-  });
-  return null;
-}
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -930,7 +918,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
+                  <Tooltip content={() => null} />
 
                   
                   {lockedHighlights.map((hl, index) => {
