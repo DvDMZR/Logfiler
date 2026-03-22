@@ -933,7 +933,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
+                  <Tooltip content={() => null} />
 
                   
                   {lockedHighlights.map((hl, index) => {
