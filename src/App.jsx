@@ -24,7 +24,9 @@ import {
   Droplets,
   CheckCircle2,
   Flag,
-  RefreshCw
+  RefreshCw,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 // SIDENOTE: 
@@ -35,7 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.01';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -73,6 +75,7 @@ export default function App() {
   const [hoveredTime, setHoveredTime] = useState(null);
   
   const [expertMode, setExpertMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [lockedLogLines, setLockedLogLines] = useState([]);
 
   const eventRefs = useRef({});
@@ -628,8 +631,8 @@ export default function App() {
       const signals = payload[0]?.payload?.signals;
 
       return (
-        <div className="bg-white/95 p-4 border border-slate-200 shadow-sm rounded-lg backdrop-blur-sm min-w-[280px]">
-          <div className="mb-3 border-b border-slate-100 pb-2">
+        <div className="bg-white/95 dark:bg-slate-800/95 p-4 border border-slate-200 dark:border-slate-600 shadow-sm rounded-lg backdrop-blur-sm min-w-[280px] dark:text-slate-100">
+          <div className="mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
             <p className="text-slate-500 uppercase text-xs tracking-wide mb-1">
               Time: {label} s
             </p>
@@ -660,7 +663,7 @@ export default function App() {
           </div>
 
           {showQtr && tooltipStates && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
               <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Quarter States</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
                 <div>RR: <span className="text-slate-500 text-xs">{tooltipStates.RR}</span></div>
@@ -672,7 +675,7 @@ export default function App() {
           )}
 
           {signals && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
               <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Signals (RR/RL/FL/FR)</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
                 <div>Milkflow: <span className="text-slate-500 text-xs font-mono">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
@@ -726,32 +729,41 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
+    <div className={`${isDarkMode ? 'dark' : ''} h-screen flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 p-4 md:p-8`}>
 
       <div className="max-w-screen-2xl mx-auto w-full mb-3 shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <div className="flex items-baseline gap-2">
-              <h1 className="text-2xl text-slate-900 tracking-tight">Milking Robot Log Analysis</h1>
-              <span className="text-xs text-slate-400 font-mono">v{APP_VERSION}</span>
+              <h1 className="text-2xl text-slate-900 dark:text-slate-50 tracking-tight">Milking Robot Log Analysis</h1>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">v{APP_VERSION}</span>
             </div>
-            <p className="text-slate-500 mt-1">Analysis and Visualization of Process Data</p>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">Analysis and Visualization of Process Data</p>
           </div>
-          <div className="relative">
-            <input
-              type="file"
-              accept=".txt,.current"
-              onChange={handleFileUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
-              <UploadCloud size={20} />
-              <span>{fileName ? 'Choose Another File' : 'Upload Log File'}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsDarkMode(prev => !prev)}
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <div className="relative">
+              <input
+                type="file"
+                accept=".txt,.current"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
+                <UploadCloud size={20} />
+                <span>{fileName ? 'Choose Another File' : 'Upload Log File'}</span>
+              </div>
             </div>
           </div>
         </div>
         {fileName && (
-          <div className="flex items-center gap-2 text-sm text-slate-500 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-slate-500 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
             <FileText size={16} />
             <span>Current file: {fileName}</span>
           </div>
@@ -765,7 +777,7 @@ export default function App() {
       </div>
 
       {!logData && (
-        <div className="max-w-screen-2xl mx-auto flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-slate-200 border-dashed text-slate-500 shadow-sm">
+        <div className="max-w-screen-2xl mx-auto flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 border-dashed text-slate-500 dark:text-slate-400 shadow-sm">
           <Activity size={48} className="text-slate-300 mb-4" />
           <p className="text-lg text-slate-600">No data loaded</p>
           <p className="mt-1">Please upload a valid .txt log file to start the analysis.</p>
@@ -777,57 +789,57 @@ export default function App() {
 
           <div className="shrink-0 space-y-3">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Info size={18} />
                 <span className="uppercase text-xs tracking-wider">Animal ID</span>
               </div>
-              <p className="text-3xl text-slate-800">{logData.animalNr}</p>
+              <p className="text-3xl text-slate-800 dark:text-slate-50">{logData.animalNr}</p>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Droplets size={18} />
                 <span className="uppercase text-xs tracking-wider">Total Amount</span>
               </div>
-              <p className="text-2xl text-slate-800">
+              <p className="text-2xl text-slate-800 dark:text-slate-100">
                 {logData.actualTotal} <span className="text-base text-slate-400">/ {logData.expectedTotal} g</span>
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Clock size={18} />
                 <span className="uppercase text-xs tracking-wider">Milking Duration</span>
               </div>
-              <p className="text-2xl text-slate-800">
+              <p className="text-2xl text-slate-800 dark:text-slate-100">
                 {logData.milkingDuration > 0 ? `${logData.milkingDuration} s` : '—'}
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <Activity size={18} />
                 <span className="uppercase text-xs tracking-wider">Avg. Milk Flow</span>
               </div>
-              <p className="text-2xl text-slate-800">
+              <p className="text-2xl text-slate-800 dark:text-slate-100">
                 {logData.avgMilkFlow > 0 ? `${logData.avgMilkFlow} g/min` : '—'}
                 {logData.maxMilkFlow > 0 && <span className="text-sm text-slate-400 ml-1">max {logData.maxMilkFlow}</span>}
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center gap-2 text-slate-500 mb-3">
                 <RefreshCw size={18} />
                 <span className="uppercase text-xs tracking-wider">Reattach Attempts</span>
               </div>
-              <p className="text-2xl text-slate-800">
+              <p className="text-2xl text-slate-800 dark:text-slate-100">
                 {logData.reattachAttempts > 0 ? logData.reattachAttempts : '—'}
               </p>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <div className="flex items-center gap-2 text-slate-500 mb-3">
               <List size={18} />
               <span className="uppercase text-xs tracking-wider">Quarter Amounts — Milked / Expected</span>
@@ -839,11 +851,11 @@ export default function App() {
                 const warn = pct < 70;
                 return (
                   <div key={q.key}>
-                    <div className="text-xs text-slate-400 mb-1">{q.label}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">{q.label}</div>
                     <div className={`text-lg ${warn ? 'text-orange-500 font-semibold' : 'text-slate-800'}`}>
                       {logData.actualQtr[q.key]}
                     </div>
-                    <div className="text-xs text-slate-400">/ {logData.expectedQtr[q.key]} g</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">/ {logData.expectedQtr[q.key]} g</div>
                     <div className={`text-xs mt-0.5 ${warn ? 'text-orange-400' : 'text-slate-300'}`}>{pct}%</div>
                   </div>
                 );
@@ -853,10 +865,10 @@ export default function App() {
           </div>{/* end shrink-0 stats wrapper */}
 
           <div className="flex-[4] flex flex-col gap-3 overflow-hidden min-h-0">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg text-slate-800">Milkflow & Amount Over Time</h2>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">T=0 is attachment</span>
+              <h2 className="text-lg text-slate-800 dark:text-slate-100">Milkflow & Amount Over Time</h2>
+              <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">T=0 is attachment</span>
             </div>
             
             <div className="flex-1 w-full mt-2">
@@ -869,12 +881,12 @@ export default function App() {
                   onMouseLeave={handleChartMouseLeave}
                   onClick={handleChartClick}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#475569" : "#e2e8f0"} />
                   <XAxis 
                     dataKey="time" 
                     type="number"
                     domain={['dataMin', 'dataMax']}
-                    stroke="#94a3b8" 
+                    stroke={isDarkMode ? "#64748b" : "#94a3b8"} 
                     fontSize={12} 
                     tickMargin={10} 
                     tickFormatter={(val) => `${val}s`}
@@ -994,7 +1006,7 @@ export default function App() {
                 <div className="flex gap-6 pt-1 pb-1 justify-center flex-wrap">
                   {groups.map(g => (
                     <div key={g.label} className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-slate-400 uppercase tracking-wide mr-1">{g.label}:</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide mr-1">{g.label}:</span>
                       {g.items.map(item => (
                         <button
                           key={item.key}
@@ -1016,16 +1028,16 @@ export default function App() {
             })()}
 
             {/* Toolbar */}
-            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 items-center">
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-x-6 gap-y-2 items-center">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Show signals:</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Show signals:</span>
                 {[
                   { key: 'milkflow', label: 'Milkflow', hint: 'Milk flow active (RR/RL/FL/FR)' },
                   { key: 'omp',      label: 'OMP',      hint: 'Overmilk protection active' },
                   { key: 'color',    label: 'Color',    hint: 'Color sensor alarm' },
                   { key: 'conduct',  label: 'Conduct',  hint: 'Conductivity alarm' },
                 ].map(s => (
-                  <label key={s.key} title={s.hint} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                  <label key={s.key} title={s.hint} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                     <input
                       type="checkbox"
                       checked={activeSignals[s.key]}
@@ -1039,12 +1051,12 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Tooltip:</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Tooltip:</span>
                 {[
                   { key: 'ams', label: 'AMS Status', state: showTooltipAms, set: setShowTooltipAms },
                   { key: 'qtr', label: 'Qu. States', state: showTooltipQtrStates, set: setShowTooltipQtrStates },
                 ].map(s => (
-                  <label key={s.key} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                  <label key={s.key} className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                     <input
                       type="checkbox"
                       checked={s.state}
@@ -1057,8 +1069,8 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4 ml-auto">
-                <span className="text-xs text-slate-400 uppercase tracking-wide whitespace-nowrap">Show in chart:</span>
-                <label title="Kickoffs as orange dashed line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Show in chart:</span>
+                <label title="Kickoffs as orange dashed line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={showKickoffsOnChart}
@@ -1067,7 +1079,7 @@ export default function App() {
                   />
                   <span className="border-b-2 border-dashed border-orange-400 leading-none">Kickoffs</span>
                 </label>
-                <label title="Reattach events as purple line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 hover:text-slate-900 transition-colors">
+                <label title="Reattach events as purple line" className="flex items-center gap-1.5 text-sm cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={showReattachOnChart}
@@ -1082,12 +1094,12 @@ export default function App() {
 
           {/* Signal Sub-Charts — eigene Zeile je Signal-Typ, syncId verbindet mit Hauptchart */}
           {Object.values(activeSignals).some(Boolean) && logData && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                 <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal Traces</span>
                 <div className="flex gap-3 ml-2">
                   {[['#ef4444','RR'],['#f97316','RL'],['#10b981','FL'],['#8b5cf6','FR']].map(([c,l]) => (
-                    <span key={l} className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span key={l} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                       <span className="w-4 h-0.5 inline-block rounded-full" style={{background:c}}/>
                       {l}
                     </span>
@@ -1103,8 +1115,8 @@ export default function App() {
                 const isLast = idx === arr.length - 1;
                 const colors = ['#ef4444','#f97316','#10b981','#8b5cf6'];
                 return (
-                  <div key={sig.key} className={`flex items-stretch ${!isLast ? 'border-b border-slate-100' : ''}`}>
-                    <div className="w-20 flex-shrink-0 flex items-center justify-end pr-3 bg-slate-50 border-r border-slate-100">
+                  <div key={sig.key} className={`flex items-stretch ${!isLast ? 'border-b border-slate-100 dark:border-slate-700' : ''}`}>
+                    <div className="w-20 flex-shrink-0 flex items-center justify-end pr-3 bg-slate-50 dark:bg-slate-900 border-r border-slate-100 dark:border-slate-700">
                       <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{sig.label}</span>
                     </div>
                     <div className="flex-1" style={{ height: isLast ? '64px' : '52px' }}>
@@ -1112,7 +1124,7 @@ export default function App() {
                         <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }} onClick={handleChartClick}>
                           <YAxis hide={true} domain={[0, 1]} />
                           {isLast
-                            ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke="#94a3b8" fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
+                            ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke={isDarkMode ? "#64748b" : "#94a3b8"} fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
                             : <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} hide={true} />
                           }
                           {lockedHighlights.map((hl, i) => (
@@ -1143,30 +1155,30 @@ export default function App() {
           </div>{/* end chart section */}
 
           {/* Expert Log panel */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col flex-[5] overflow-hidden min-h-0">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col flex-[5] overflow-hidden min-h-0">
               <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-800">
+                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <Clock size={20} className="text-slate-400" />
                     <h2 className="text-lg">Process Events</h2>
                   </div>
-                  <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+                  <div className="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden text-xs">
                     <button
                       onClick={() => setExpertMode(false)}
-                      className={`px-3 py-1 transition-colors ${!expertMode ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                      className={`px-3 py-1 transition-colors ${!expertMode ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
                     >
                       Einfach
                     </button>
                     <button
                       onClick={() => setExpertMode(true)}
-                      className={`px-3 py-1 transition-colors ${expertMode ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                      className={`px-3 py-1 transition-colors ${expertMode ? 'bg-blue-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
                     >
                       Experten
                     </button>
                   </div>
                 </div>
                 {expertMode && (
-                  <p className="text-xs text-slate-400 mt-2">Vollständiges Logfile · Klicken zum Markieren</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Vollständiges Logfile · Klicken zum Markieren</p>
                 )}
               </div>
 
@@ -1229,7 +1241,7 @@ export default function App() {
                         <div className="pt-1.5 pb-1">
                           <div className="flex items-baseline gap-2">
                             <span className={`text-sm ${isLocked ? 'text-slate-900' : 'text-slate-800'}`}>{event.type}</span>
-                            <span className="text-xs text-slate-400 uppercase tracking-widest">t={event.time}s</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest">t={event.time}s</span>
                           </div>
                           <p className={`text-sm mt-1 leading-relaxed ${isLocked ? 'text-slate-700' : 'text-slate-500'}`}>
                             {event.desc}
@@ -1257,16 +1269,16 @@ export default function App() {
                           time !== null ? 'cursor-pointer' : ''
                         } ${
                           isLocked
-                            ? 'bg-amber-100 border-l-4 border-amber-500'
+                            ? 'bg-amber-100 dark:bg-amber-900/40 border-l-4 border-amber-500 dark:border-amber-400'
                             : isNearCursor
-                              ? 'bg-blue-300 border-l-4 border-blue-700'
+                              ? 'bg-blue-300 dark:bg-blue-900/60 border-l-4 border-blue-700 dark:border-blue-400'
                               : time !== null
-                                ? 'hover:bg-slate-200'
+                                ? 'hover:bg-slate-200 dark:hover:bg-slate-700'
                                 : ''
                         }`}
                       >
-                        <span className="text-slate-600 shrink-0 w-8 text-right select-none font-medium">{idx + 1}</span>
-                        <span className={`break-all ${isLocked ? 'text-amber-900 font-medium' : isNearCursor ? 'text-blue-950 font-semibold' : 'text-slate-900'}`}>{text}</span>
+                        <span className="text-slate-600 dark:text-slate-400 shrink-0 w-8 text-right select-none font-medium">{idx + 1}</span>
+                        <span className={`break-all ${isLocked ? 'text-amber-900 dark:text-amber-200 font-medium' : isNearCursor ? 'text-blue-950 dark:text-blue-100 font-semibold' : 'text-slate-900 dark:text-slate-100'}`}>{text}</span>
                       </div>
                     );
                   })}
@@ -1275,7 +1287,7 @@ export default function App() {
             </div>
           <div className="shrink-0 overflow-y-auto max-h-[28vh] space-y-4 pb-2">
           {/* Anomalies */}
-          <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col max-h-52">
+          <div className="bg-red-50 dark:bg-red-950/30 p-5 rounded-xl border border-red-100 dark:border-red-900 shadow-sm flex flex-col max-h-52">
             <div className="flex items-center gap-2 text-red-600 mb-4 shrink-0">
               <AlertTriangle size={20} />
               <h2 className="text-lg">Anomalies</h2>
@@ -1326,24 +1338,24 @@ export default function App() {
           </div>
 
           {logData.finalResults && logData.finalResults.hasData && (
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-              <div className="flex items-center gap-2 text-slate-800 mb-6 shrink-0">
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 mb-6 shrink-0">
                 <Flag size={20} className="text-blue-500" />
                 <h2 className="text-lg">Final Results</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
                   <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Milked Amount</div>
-                  <div className="text-2xl text-slate-800">{logData.finalResults.totalKg} kg</div>
+                  <div className="text-2xl text-slate-800 dark:text-slate-100">{logData.finalResults.totalKg} kg</div>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
                   <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Expected Amount</div>
-                  <div className="text-2xl text-slate-800">{logData.finalResults.expectedKg} kg</div>
+                  <div className="text-2xl text-slate-800 dark:text-slate-100">{logData.finalResults.expectedKg} kg</div>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
                   <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">%</div>
-                  <div className="text-2xl text-slate-800">{logData.finalResults.percent} %</div>
+                  <div className="text-2xl text-slate-800 dark:text-slate-100">{logData.finalResults.percent} %</div>
                 </div>
               </div>
 
@@ -1357,34 +1369,34 @@ export default function App() {
                     <div className={`text-sm mb-3 border-b pb-2 ${detectionSlow ? 'text-orange-700 border-orange-100' : 'text-slate-600 border-slate-100'}`}>{q.label}</div>
                     <div className="space-y-2.5">
                       <div>
-                        <div className="text-xs text-slate-400">Amount</div>
-                        <div className="text-lg text-slate-800">{logData.finalResults.qtrAmount[q.key]} g</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Amount</div>
+                        <div className="text-lg text-slate-800 dark:text-slate-100">{logData.finalResults.qtrAmount[q.key]} g</div>
                       </div>
                       <div>
-                        <div className="text-xs text-slate-400">%</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">%</div>
                         <div className="text-base text-slate-700">{logData.finalResults.qtrPercent[q.key]} %</div>
                       </div>
                       <div className="flex justify-center gap-4">
                         <div>
-                          <div className="text-xs text-slate-400">MilkTime</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">MilkTime</div>
                           <div className="text-sm text-slate-700">{logData.finalResults.milkTime[q.key]} s</div>
                         </div>
                         <div>
-                          <div className="text-xs text-slate-400">MF-Time</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">MF-Time</div>
                           <div className="text-sm text-slate-700">{logData.finalResults.milkTimeMF[q.key]} s</div>
                         </div>
                       </div>
                       {detTime > 0 && (
                         <div className={`pt-2 border-t ${detectionSlow ? 'border-orange-100' : 'border-slate-100'}`}>
-                          <div className="text-xs text-slate-400">Detection Time</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">Detection Time</div>
                           <div className={`text-sm font-medium ${detectionSlow ? 'text-orange-600' : 'text-slate-700'}`}>
                             {detTime} s {detTries > 1 && <span className="text-xs font-normal">({detTries}× attempt)</span>}
                             {detectionSlow && <span className="ml-1 text-xs">⚠</span>}
                           </div>
                         </div>
                       )}
-                      <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
-                        <div className="text-xs text-slate-400">Kickoffs</div>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Kickoffs</div>
                         <div className={`text-sm font-medium ${logData.finalResults.nrOfKickoffs[q.key] > 0 ? 'text-orange-500' : 'text-slate-700'}`}>
                           {logData.finalResults.nrOfKickoffs[q.key]}
                         </div>
@@ -1412,18 +1424,18 @@ export default function App() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
             <button 
               onClick={() => setShowParameters(!showParameters)}
-              className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center justify-between p-5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <span className="text-lg text-slate-800">System Parameters (MLK_Parameter)</span>
+              <span className="text-lg text-slate-800 dark:text-slate-100">System Parameters (MLK_Parameter)</span>
               {showParameters ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-400"/>}
             </button>
             
             {showParameters && (
-              <div className="p-5 border-t border-slate-100 bg-slate-50">
-                <div className="h-64 overflow-y-auto font-mono text-xs text-slate-600 bg-white p-4 rounded border border-slate-200 shadow-inner">
+              <div className="p-5 border-t border-slate-100 dark:border-slate-700 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                <div className="h-64 overflow-y-auto font-mono text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-4 rounded border border-slate-200 dark:border-slate-700 shadow-inner">
                   {logData.parameters.map((p, i) => (
                     <div key={i} className="whitespace-pre truncate">{p}</div>
                   ))}
