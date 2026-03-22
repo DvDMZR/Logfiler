@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -37,21 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.05';
-
-// Captures Recharts Tooltip payload → side panel state
-// (e.activePayload in onMouseMove ist in Recharts v3 nicht zuverlässig befüllt)
-function PanelCapture({ active, payload, label, onCapture }) {
-  const prevRef = useRef({ active: false, label: undefined });
-  useEffect(() => {
-    const prev = prevRef.current;
-    if (prev.active !== active || prev.label !== label) {
-      prevRef.current = { active, label };
-      onCapture(active && payload?.length ? { payload, label } : null);
-    }
-  });
-  return null;
-}
+const APP_VERSION = '1.06';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -103,10 +89,6 @@ export default function App() {
   const logLineRefs = useRef({});
   const lastActiveLabelRef = useRef(undefined);
 
-  const handlePanelCapture = useCallback((data) => {
-    setHoveredPayload(data?.payload ?? null);
-    setHoveredTime(data?.label ?? null);
-  }, []);
 
   const parseLogFile = useCallback((text) => {
     const lines = text.split('\n');
@@ -545,6 +527,9 @@ export default function App() {
       if (e.activeLabel !== lastActiveLabelRef.current) {
         lastActiveLabelRef.current = e.activeLabel;
       }
+      setHoveredTime(e.activeLabel);
+      const dp = logData.chartData.find(d => d.time === e.activeLabel);
+      setHoveredPayload(dp ? [{ payload: dp }] : null);
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
@@ -933,7 +918,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
+                  <Tooltip content={() => null} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -1011,7 +996,7 @@ export default function App() {
             {(() => {
               const payload = hoveredPayload;
               const visiblePayload = payload
-                ? payload.filter(e => e.color !== 'transparent' && !e.name.includes('signals.') && !e.name.startsWith('signals'))
+                ? payload.filter(e => e.color && e.color !== 'transparent' && e.name && !e.name.includes('signals.') && !e.name.startsWith('signals'))
                 : [];
               const dataPoint = payload?.[0]?.payload;
               const tooltipStates = dataPoint?.qtrStates;
