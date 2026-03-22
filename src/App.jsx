@@ -552,6 +552,21 @@ export default function App() {
         }
       }
 
+      if (expertMode && logData.rawLines) {
+        let closestLineIdx = null;
+        let closestDiff = Infinity;
+        logData.rawLines.forEach(({ time }, i) => {
+          if (time !== null) {
+            const diff = Math.abs(time - e.activeLabel);
+            if (diff < closestDiff) { closestDiff = diff; closestLineIdx = i; }
+          }
+        });
+        if (closestLineIdx !== null && logLineRefs.current[closestLineIdx] && logLineContainerRef.current) {
+          const container = logLineContainerRef.current;
+          const el = logLineRefs.current[closestLineIdx];
+          container.scrollTop = el.offsetTop - container.clientHeight * 0.25;
+        }
+      }
     }
   };
 
@@ -1242,14 +1257,14 @@ export default function App() {
                           isLocked
                             ? 'bg-amber-100 border-l-4 border-amber-500'
                             : isNearCursor
-                              ? 'bg-blue-200 border-l-4 border-blue-600'
+                              ? 'bg-blue-300 border-l-4 border-blue-700'
                               : time !== null
                                 ? 'hover:bg-slate-200'
                                 : ''
                         }`}
                       >
                         <span className="text-slate-600 shrink-0 w-8 text-right select-none font-medium">{idx + 1}</span>
-                        <span className={`break-all ${isLocked ? 'text-amber-900 font-medium' : isNearCursor ? 'text-blue-950 font-medium' : 'text-slate-900'}`}>{text}</span>
+                        <span className={`break-all ${isLocked ? 'text-amber-900 font-medium' : isNearCursor ? 'text-blue-950 font-semibold' : 'text-slate-900'}`}>{text}</span>
                       </div>
                     );
                   })}
