@@ -552,22 +552,6 @@ export default function App() {
         }
       }
 
-      if (expertMode && logData.rawLines) {
-        let closestLineIdx = null;
-        let closestDiff = Infinity;
-        logData.rawLines.forEach(({ time }, i) => {
-          if (time !== null) {
-            const diff = Math.abs(time - e.activeLabel);
-            if (diff < closestDiff) {
-              closestDiff = diff;
-              closestLineIdx = i;
-            }
-          }
-        });
-        if (closestLineIdx !== null && logLineRefs.current[closestLineIdx]) {
-          logLineRefs.current[closestLineIdx].scrollIntoView({ block: 'center', behavior: 'auto' });
-        }
-      }
     }
   };
 
