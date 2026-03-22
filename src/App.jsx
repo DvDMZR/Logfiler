@@ -73,6 +73,7 @@ export default function App() {
   const [lockedHighlights, setLockedHighlights] = useState([]);
   const [hoverHighlight, setHoverHighlight] = useState(null);
   const [hoveredTime, setHoveredTime] = useState(null);
+  const [hoveredPayload, setHoveredPayload] = useState(null);
   
   const [expertMode, setExpertMode] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -522,6 +523,7 @@ export default function App() {
   const handleChartMouseMove = (e) => {
     if (e && e.activeLabel !== undefined && logData) {
       setHoveredTime(e.activeLabel);
+      setHoveredPayload(e.activePayload || null);
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
@@ -871,7 +873,8 @@ export default function App() {
               <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">T=0 is attachment</span>
             </div>
             
-            <div className="flex-1 w-full mt-2">
+            <div className="flex-1 flex gap-4 min-h-0 mt-2">
+            <div className="flex-1 min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={logData.chartData}
@@ -907,7 +910,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={(props) => <CustomTooltip {...props} showAms={showTooltipAms} showQtr={showTooltipQtrStates} />} wrapperStyle={{ zIndex: 100 }} position={{ x: 20, y: 10 }} />
+                  <Tooltip content={() => null} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -981,6 +984,85 @@ export default function App() {
               </ResponsiveContainer>
             </div>
 
+            {/* Side info panel */}
+            {(() => {
+              const payload = hoveredPayload;
+              const visiblePayload = payload
+                ? payload.filter(e => e.color !== 'transparent' && !e.name.includes('signals.') && !e.name.startsWith('signals'))
+                : [];
+              const dataPoint = payload?.[0]?.payload;
+              const tooltipStates = dataPoint?.qtrStates;
+              const amsState = dataPoint?.amsState;
+              const signals = dataPoint?.signals;
+              return (
+                <div className="w-72 shrink-0 flex flex-col border-l border-slate-100 dark:border-slate-700 pl-4 overflow-y-auto">
+                  {!payload ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-300 dark:text-slate-600 gap-2">
+                      <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 12h18M12 3l9 9-9 9"/></svg>
+                      <span className="text-xs text-center">Maus über den Chart<br/>für Detaildaten</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+                        <p className="text-slate-400 uppercase text-xs tracking-wide mb-1">Zeit</p>
+                        <p className="text-slate-800 dark:text-slate-100 font-mono text-lg">{hoveredTime} s</p>
+                        {showTooltipAms && amsState && (
+                          <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Status: <span className="font-medium">{amsState}</span></p>
+                        )}
+                      </div>
+
+                      {visiblePayload.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Werte</p>
+                          <div className="space-y-1.5">
+                            {visiblePayload.map((entry, i) => {
+                              const isFlow = entry.name?.includes('Flow');
+                              return (
+                                <div key={i} className="flex items-center justify-between gap-2">
+                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-xs min-w-0">
+                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                                    <span className="truncate">{entry.name}</span>
+                                  </span>
+                                  <span className="text-slate-800 dark:text-slate-100 text-xs font-mono whitespace-nowrap">
+                                    {entry.value} {isFlow ? 'g/min' : 'g'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {showTooltipQtrStates && tooltipStates && (
+                        <div className="mb-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Quarter States</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                            <div className="text-slate-500">RR: <span className="text-slate-700 dark:text-slate-300">{tooltipStates.RR}</span></div>
+                            <div className="text-slate-500">RL: <span className="text-slate-700 dark:text-slate-300">{tooltipStates.RL}</span></div>
+                            <div className="text-slate-500">FL: <span className="text-slate-700 dark:text-slate-300">{tooltipStates.FL}</span></div>
+                            <div className="text-slate-500">FR: <span className="text-slate-700 dark:text-slate-300">{tooltipStates.FR}</span></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {signals && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
+                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Signals (RR/RL/FL/FR)</p>
+                          <div className="space-y-1.5 text-xs">
+                            <div className="text-slate-500">Milkflow: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
+                            <div className="text-slate-500">OMP: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
+                            <div className="text-slate-500">Color: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.colRR}/{signals.colRL}/{signals.colFL}/{signals.colFR}</span></div>
+                            <div className="text-slate-500">Conduct: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.conRR}/{signals.conRL}/{signals.conFL}/{signals.conFR}</span></div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            </div>{/* end flex-row chart+panel */}
+
             {/* Custom grouped legend */}
             {(() => {
               const qColors = { Total: null, RR: '#ef4444', RL: '#f97316', FL: '#10b981', FR: '#8b5cf6' };
@@ -1051,7 +1133,7 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 flex-wrap border-l border-slate-200 pl-4">
-                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Tooltip:</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Info Panel:</span>
                 {[
                   { key: 'ams', label: 'AMS Status', state: showTooltipAms, set: setShowTooltipAms },
                   { key: 'qtr', label: 'Qu. States', state: showTooltipQtrStates, set: setShowTooltipQtrStates },
