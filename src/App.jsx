@@ -540,6 +540,7 @@ export default function App() {
   const handleChartMouseMove = (e) => {
     if (e && e.activeLabel !== undefined && logData) {
       setHoveredTime(e.activeLabel);
+      setHoveredPayload(e.activePayload || null);
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
@@ -749,7 +750,7 @@ export default function App() {
   return (
     <div className={`${isDarkMode ? 'dark' : ''} min-h-screen bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 p-4 md:p-5`}>
 
-      <div className="w-full w-full mb-8">
+      <div className="w-full mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <div className="flex items-baseline gap-2">
