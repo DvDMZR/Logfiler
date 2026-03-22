@@ -101,9 +101,6 @@ export default function App() {
   const logLineContainerRef = useRef(null);
   const logLineRefs = useRef({});
 
-  const handlePanelCapture = useCallback((data) => {
-    setHoveredPayload(data?.payload ?? null);
-  }, []);
 
   const parseLogFile = useCallback((text) => {
     const lines = text.split('\n');
