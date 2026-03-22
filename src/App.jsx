@@ -37,7 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.08';
+const APP_VERSION = '1.09';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -995,6 +995,7 @@ export default function App() {
             {/* Side info panel */}
             {(() => {
               const payload = hoveredPayload;
+              const dataPoint = payload?.[0]?.payload;
               const WERTE = dataPoint ? [
                 { key: 'amountTotal', name: 'Amount Total', color: '#64748b', unit: 'g' },
                 { key: 'amountRR',    name: 'Amount RR',    color: '#ef4444', unit: 'g' },
@@ -1007,7 +1008,6 @@ export default function App() {
                 { key: 'flowFL',      name: 'Flow FL',      color: '#10b981', unit: 'g/min' },
                 { key: 'flowFR',      name: 'Flow FR',      color: '#8b5cf6', unit: 'g/min' },
               ].filter(s => !hiddenSeries[s.key]) : [];
-              const dataPoint = payload?.[0]?.payload;
               const tooltipStates = dataPoint?.qtrStates;
               const amsState = dataPoint?.amsState;
               const signals = dataPoint?.signals;
