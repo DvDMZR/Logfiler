@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -38,6 +38,19 @@ import {
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
 const APP_VERSION = '1.02';
+
+// Captures Recharts Tooltip data (already filtered: hidden series excluded) → side panel state
+function PanelCapture({ active, payload, label, onCapture }) {
+  const prevRef = useRef({ active: false, label: undefined });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev.active !== active || prev.label !== label) {
+      prevRef.current = { active, label };
+      onCapture(active && payload?.length ? { payload, label } : null);
+    }
+  });
+  return null;
+}
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -87,6 +100,10 @@ export default function App() {
 
   const logLineContainerRef = useRef(null);
   const logLineRefs = useRef({});
+
+  const handlePanelCapture = useCallback((data) => {
+    setHoveredPayload(data?.payload ?? null);
+  }, []);
 
   const parseLogFile = useCallback((text) => {
     const lines = text.split('\n');
@@ -523,7 +540,6 @@ export default function App() {
   const handleChartMouseMove = (e) => {
     if (e && e.activeLabel !== undefined && logData) {
       setHoveredTime(e.activeLabel);
-      setHoveredPayload(e.activePayload || null);
       let closestItem = null;
       let minDiff = Infinity;
       const threshold = 15;
@@ -731,9 +747,9 @@ export default function App() {
   };
 
   return (
-    <div className={`${isDarkMode ? 'dark' : ''} min-h-screen bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 p-4 md:p-8`}>
+    <div className={`${isDarkMode ? 'dark' : ''} min-h-screen bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 p-4 md:p-5`}>
 
-      <div className="max-w-screen-2xl mx-auto w-full mb-8">
+      <div className="w-full w-full mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <div className="flex items-baseline gap-2">
@@ -779,7 +795,7 @@ export default function App() {
       </div>
 
       {!logData && (
-        <div className="max-w-screen-2xl mx-auto flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 border-dashed text-slate-500 dark:text-slate-400 shadow-sm">
+        <div className="w-full flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 border-dashed text-slate-500 dark:text-slate-400 shadow-sm">
           <Activity size={48} className="text-slate-300 mb-4" />
           <p className="text-lg text-slate-600">No data loaded</p>
           <p className="mt-1">Please upload a valid .txt log file to start the analysis.</p>
@@ -787,7 +803,7 @@ export default function App() {
       )}
 
       {logData && (
-        <div className="max-w-screen-2xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
 
           <div className="space-y-3">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -910,7 +926,7 @@ export default function App() {
                     tickMargin={10} 
                     domain={[0, logData.maxAmount]}
                   />
-                  <Tooltip content={() => null} />
+                  <Tooltip content={(props) => <PanelCapture {...props} onCapture={handlePanelCapture} />} />
 
                   
                   {lockedHighlights.map((hl, index) => {
@@ -995,7 +1011,7 @@ export default function App() {
               const amsState = dataPoint?.amsState;
               const signals = dataPoint?.signals;
               return (
-                <div className="w-72 shrink-0 flex flex-col border-l border-slate-100 dark:border-slate-700 pl-4 overflow-y-auto">
+                <div className="w-96 shrink-0 flex flex-col border-l border-slate-100 dark:border-slate-700 pl-5 overflow-y-auto">
                   {!payload ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-300 dark:text-slate-600 gap-2">
                       <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 12h18M12 3l9 9-9 9"/></svg>
