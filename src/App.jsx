@@ -864,7 +864,7 @@ export default function App() {
           </div>
           </div>{/* end shrink-0 stats wrapper */}
 
-          <div className="flex-[4] flex flex-col gap-3 overflow-hidden min-h-[220px]">
+          <div className="flex-[4] flex flex-col gap-3 overflow-hidden min-h-0">
           <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg text-slate-800 dark:text-slate-100">Milkflow & Amount Over Time</h2>
@@ -1285,7 +1285,7 @@ export default function App() {
                 </div>
               )}
             </div>
-          <div className="overflow-y-auto max-h-[22vh] space-y-4 pb-2 shrink">
+          <div className="shrink-0 overflow-y-auto max-h-[28vh] space-y-4 pb-2">
           {/* Anomalies */}
           <div className="bg-red-50 dark:bg-red-950/30 p-5 rounded-xl border border-red-100 dark:border-red-900 shadow-sm flex flex-col max-h-52">
             <div className="flex items-center gap-2 text-red-600 mb-4 shrink-0">
