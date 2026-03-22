@@ -37,7 +37,7 @@ import {
 // Anmerkung: In der Nutzeranforderung stand "HR/HR/FR/FL" - dies wurde sinngemaess 
 // als HR (RR), HL (RL), VL (FL), VR (FR) interpretiert und ueberall exakt so gedeutet.
 
-const APP_VERSION = '1.07';
+const APP_VERSION = '1.08';
 
 export default function App() {
   const [logData, setLogData] = useState(null);
@@ -1190,7 +1190,8 @@ export default function App() {
 
           {/* Signal Sub-Charts — eigene Zeile je Signal-Typ, syncId verbindet mit Hauptchart */}
           {Object.values(activeSignals).some(Boolean) && logData && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="flex gap-4">
+            <div className="flex-1 min-w-0 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                 <span className="text-xs text-slate-500 uppercase tracking-wide font-medium">Signal Traces</span>
                 <div className="flex gap-3 ml-2">
@@ -1217,7 +1218,7 @@ export default function App() {
                     </div>
                     <div className="flex-1" style={{ height: isLast ? '64px' : '52px' }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 65, left: -20, bottom: 0 }} onClick={handleChartClick}>
+                        <LineChart data={logData.chartData} syncId="milking" margin={{ top: 4, right: 5, left: -20, bottom: 0 }} onClick={handleChartClick}>
                           <YAxis hide={true} domain={[0, 1]} />
                           {isLast
                             ? <XAxis dataKey="time" type="number" domain={['dataMin','dataMax']} stroke={isDarkMode ? "#64748b" : "#94a3b8"} fontSize={10} tickMargin={4} tickFormatter={val=>`${val}s`} height={18} />
@@ -1245,6 +1246,8 @@ export default function App() {
                   </div>
                 );
               })}
+            </div>
+            <div className="w-96 shrink-0" />
             </div>
           )}
 
