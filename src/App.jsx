@@ -642,56 +642,51 @@ export default function App() {
 
       return (
         <div className="bg-white/95 dark:bg-slate-800/95 p-4 border border-slate-200 dark:border-slate-600 shadow-sm rounded-lg backdrop-blur-sm min-w-[280px] dark:text-slate-100">
-          <div className="mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
-            <p className="text-slate-500 uppercase text-xs tracking-wide mb-1">
-              Time: {label} s
+          <div className="mb-2 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+            <p className="text-slate-700 dark:text-slate-200 text-sm font-mono">
+              {label} s{showAms && amsState && <span className="text-slate-500 ml-2">· {amsState}</span>}
             </p>
-            {showAms && amsState && (
-              <p className="text-slate-700 text-sm">
-                Status: {amsState}
-              </p>
-            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-            {visiblePayload.map((entry, index) => {
-              const isFlow = entry.name && entry.name.includes('Flow');
-              return (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <span className="flex items-center gap-2 text-slate-600 text-sm">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="truncate">{entry.name}</span>
-                  </span>
-                  <span className="text-slate-800 text-sm whitespace-nowrap">
-                    {entry.value} {isFlow ? 'g/min' : 'g'}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="space-y-1">
+            {(() => {
+              const quarters = ['Total', 'RR', 'RL', 'FL', 'FR'];
+              return quarters.map(q => {
+                const amount = visiblePayload.find(e => e.name === `Amount ${q}`);
+                const flow = visiblePayload.find(e => e.name === `Flow ${q}`);
+                if (!amount && !flow) return null;
+                const color = (amount || flow)?.color;
+                return (
+                  <div key={q} className="flex items-center gap-1.5 text-xs">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-slate-600 dark:text-slate-300 w-8">{q}</span>
+                    {amount && <span className="font-mono text-slate-800 dark:text-slate-100 w-16 text-right">{amount.value} <span className="text-slate-400">g</span></span>}
+                    {flow && <span className="font-mono text-slate-800 dark:text-slate-100 text-right ml-1">{flow.value} <span className="text-slate-400">g/min</span></span>}
+                  </div>
+                );
+              }).filter(Boolean);
+            })()}
           </div>
 
           {showQtr && tooltipStates && (
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
-              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Quarter States</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
-                <div>RR: <span className="text-slate-500 text-xs">{tooltipStates.RR}</span></div>
-                <div>RL: <span className="text-slate-500 text-xs">{tooltipStates.RL}</span></div>
-                <div>FL: <span className="text-slate-500 text-xs">{tooltipStates.FL}</span></div>
-                <div>FR: <span className="text-slate-500 text-xs">{tooltipStates.FR}</span></div>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <p className="text-slate-500 mb-1 uppercase text-xs tracking-wide">Quarter States</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-slate-700 dark:text-slate-300">
+                <div>RR: <span className="text-slate-500">{tooltipStates.RR}</span></div>
+                <div>RL: <span className="text-slate-500">{tooltipStates.RL}</span></div>
+                <div>FL: <span className="text-slate-500">{tooltipStates.FL}</span></div>
+                <div>FR: <span className="text-slate-500">{tooltipStates.FR}</span></div>
               </div>
             </div>
           )}
 
           {signals && (
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
-              <p className="text-slate-500 mb-2 uppercase text-xs tracking-wide">Signals (RR/RL/FL/FR)</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-700">
-                <div>Milkflow: <span className="text-slate-500 text-xs font-mono">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
-                <div>OMP: <span className="text-slate-500 text-xs font-mono">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
-                <div>Color: <span className="text-slate-500 text-xs font-mono">{signals.colRR}/{signals.colRL}/{signals.colFL}/{signals.colFR}</span></div>
-                <div>Conduct: <span className="text-slate-500 text-xs font-mono">{signals.conRR}/{signals.conRL}/{signals.conFL}/{signals.conFR}</span></div>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <p className="text-slate-500 mb-1 uppercase text-xs tracking-wide">Signals (RR/RL/FL/FR)</p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-slate-700 dark:text-slate-300">
+                <div>Milkflow <span className="font-mono text-slate-500">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
+                <div>OMP <span className="font-mono text-slate-500">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
+                <div>Color <span className="font-mono text-slate-500">{signals.colRR}/{signals.colRL}/{signals.colFL}/{signals.colFR}</span></div>
+                <div>Conduct <span className="font-mono text-slate-500">{signals.conRR}/{signals.conRL}/{signals.conFL}/{signals.conFR}</span></div>
               </div>
             </div>
           )}
