@@ -7,5 +7,5 @@ plugins: [
 react(),
 tailwindcss(),
 ],
-base: '/Logfiler/'
+base: process.env.VITE_BASE_PATH || '/Logfiler/'
 })
