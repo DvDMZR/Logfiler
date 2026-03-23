@@ -996,18 +996,13 @@ export default function App() {
             {(() => {
               const payload = hoveredPayload;
               const dataPoint = payload?.[0]?.payload;
-              const WERTE = dataPoint ? [
-                { key: 'amountTotal', name: 'Amount Total', color: '#64748b', unit: 'g' },
-                { key: 'amountRR',    name: 'Amount RR',    color: '#ef4444', unit: 'g' },
-                { key: 'amountRL',    name: 'Amount RL',    color: '#f97316', unit: 'g' },
-                { key: 'amountFL',    name: 'Amount FL',    color: '#10b981', unit: 'g' },
-                { key: 'amountFR',    name: 'Amount FR',    color: '#8b5cf6', unit: 'g' },
-                { key: 'flowTotal',   name: 'Flow Total',   color: '#3b82f6', unit: 'g/min' },
-                { key: 'flowRR',      name: 'Flow RR',      color: '#ef4444', unit: 'g/min' },
-                { key: 'flowRL',      name: 'Flow RL',      color: '#f97316', unit: 'g/min' },
-                { key: 'flowFL',      name: 'Flow FL',      color: '#10b981', unit: 'g/min' },
-                { key: 'flowFR',      name: 'Flow FR',      color: '#8b5cf6', unit: 'g/min' },
-              ].filter(s => !hiddenSeries[s.key]) : [];
+              const WERTE_GROUPED = dataPoint ? [
+                { quarter: 'Total', color: '#64748b', amountKey: 'amountTotal', flowKey: 'flowTotal', flowColor: '#3b82f6' },
+                { quarter: 'RR',    color: '#ef4444', amountKey: 'amountRR',    flowKey: 'flowRR' },
+                { quarter: 'RL',    color: '#f97316', amountKey: 'amountRL',    flowKey: 'flowRL' },
+                { quarter: 'FL',    color: '#10b981', amountKey: 'amountFL',    flowKey: 'flowFL' },
+                { quarter: 'FR',    color: '#8b5cf6', amountKey: 'amountFR',    flowKey: 'flowFR' },
+              ].filter(g => !hiddenSeries[g.amountKey] || !hiddenSeries[g.flowKey]) : [];
               const tooltipStates = dataPoint?.qtrStates;
               const amsState = dataPoint?.amsState;
               const signals = dataPoint?.signals;
@@ -1020,27 +1015,26 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      <div className="mb-3 pb-2 border-b border-slate-100 dark:border-slate-700">
-                        <p className="text-slate-400 uppercase text-xs tracking-wide mb-1">Zeit</p>
-                        <p className="text-slate-800 dark:text-slate-100 font-mono text-lg">{hoveredTime} s</p>
-                        {showTooltipAms && amsState && (
-                          <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Status: <span className="font-medium">{amsState}</span></p>
-                        )}
+                      <div className="mb-2 pb-2 border-b border-slate-100 dark:border-slate-700">
+                        <p className="text-slate-800 dark:text-slate-100 font-mono text-lg">
+                          {hoveredTime} s{showTooltipAms && amsState && <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">· {amsState}</span>}
+                        </p>
                       </div>
 
-                      {WERTE.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Werte</p>
-                          <div className="space-y-1.5">
-                            {WERTE.map((s, i) => (
-                              <div key={i} className="flex items-center justify-between gap-2">
-                                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-xs min-w-0">
-                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                                  <span className="truncate">{s.name}</span>
-                                </span>
-                                <span className="text-slate-800 dark:text-slate-100 text-xs font-mono whitespace-nowrap">
-                                  {dataPoint[s.key]} {s.unit}
-                                </span>
+                      {WERTE_GROUPED.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-1">Werte</p>
+                          <div className="space-y-1">
+                            {WERTE_GROUPED.map((g, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-xs">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                                <span className="text-slate-600 dark:text-slate-300 w-8">{g.quarter}</span>
+                                {!hiddenSeries[g.amountKey] && (
+                                  <span className="font-mono text-slate-800 dark:text-slate-100 w-16 text-right">{dataPoint[g.amountKey]} <span className="text-slate-400">g</span></span>
+                                )}
+                                {!hiddenSeries[g.flowKey] && (
+                                  <span className="font-mono text-slate-800 dark:text-slate-100 text-right ml-1">{dataPoint[g.flowKey]} <span className="text-slate-400">g/min</span></span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1061,12 +1055,12 @@ export default function App() {
 
                       {signals && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
-                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-2">Signals (RR/RL/FL/FR)</p>
-                          <div className="space-y-1.5 text-xs">
-                            <div className="text-slate-500">Milkflow: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
-                            <div className="text-slate-500">OMP: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
-                            <div className="text-slate-500">Color: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.colRR}/{signals.colRL}/{signals.colFL}/{signals.colFR}</span></div>
-                            <div className="text-slate-500">Conduct: <span className="font-mono text-slate-700 dark:text-slate-300">{signals.conRR}/{signals.conRL}/{signals.conFL}/{signals.conFR}</span></div>
+                          <p className="text-slate-400 uppercase text-xs tracking-wide mb-1">Signals (RR/RL/FL/FR)</p>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                            <div className="text-slate-500">Milkflow <span className="font-mono text-slate-700 dark:text-slate-300">{signals.mfRR}/{signals.mfRL}/{signals.mfFL}/{signals.mfFR}</span></div>
+                            <div className="text-slate-500">OMP <span className="font-mono text-slate-700 dark:text-slate-300">{signals.ompRR}/{signals.ompRL}/{signals.ompFL}/{signals.ompFR}</span></div>
+                            <div className="text-slate-500">Color <span className="font-mono text-slate-700 dark:text-slate-300">{signals.colRR}/{signals.colRL}/{signals.colFL}/{signals.colFR}</span></div>
+                            <div className="text-slate-500">Conduct <span className="font-mono text-slate-700 dark:text-slate-300">{signals.conRR}/{signals.conRL}/{signals.conFL}/{signals.conFR}</span></div>
                           </div>
                         </div>
                       )}
